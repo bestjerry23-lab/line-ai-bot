@@ -1,0 +1,11 @@
+// package.json
+{
+  "name": "line-ai-bot",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": { "start": "node app.js" },
+  "dependencies": {
+    "@line/bot-sdk": "^9.0.0",
+    "express": "^4.18.0"
+  }
+}
