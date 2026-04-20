@@ -12,8 +12,10 @@ const client = new line.messagingApi.MessagingApiClient({
   channelAccessToken: lineConfig.channelAccessToken,
 });
 
-const SHEET_ID = '1G-COhoJARyzEYMyt6iCFWCSA3vcLCOUvJfW_SkRfby0';
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw1thsiQXBS2oSIoJGsqfP9O5UGkIZ4q6hJSL2D_PHArxnAAJeABZOz_yOM_OF6dORp/exec';
+
+// 暫存待合併訂單（記憶體暫存）
+const pendingMerge = {};
 
 async function callScript(action, params = {}) {
   const response = await fetch(APPS_SCRIPT_URL, {
@@ -52,8 +54,50 @@ async function handleEvent(event) {
 
   const userMessage = event.message.text.trim();
   const isGroup = event.source.type === 'group' || event.source.type === 'room';
+  const sourceId = event.source.groupId || event.source.roomId || event.source.userId;
 
   try {
+
+    // 合併訂單確認
+    const mergeMatch = userMessage.match(/合併\s*[：:]?\s*(\S+)/);
+    if (mergeMatch && pendingMerge[sourceId]) {
+      const pending = pendingMerge[sourceId];
+      const result = await callScript('mergeOrder', {
+        orderId: mergeMatch[1],
+        newProduct: pending.newProduct,
+        newPrice: pending.newPrice,
+      });
+      delete pendingMerge[sourceId];
+      if (result.error) {
+        await client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: `❌ ${result.error}` }],
+        });
+      } else {
+        await client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: `✅ 訂單已合併！\n━━━━━━━━━━━━━━\n📋 訂單編號：${result.orderId}\n📦 商品：${result.mergedProduct}\n💰 合計：${result.mergedPrice} 元` }],
+        });
+      }
+      return;
+    }
+
+    // 不合併，另開新訂單
+    if (userMessage === '不合併' && pendingMerge[sourceId]) {
+      const pending = pendingMerge[sourceId];
+      delete pendingMerge[sourceId];
+      const result = await callScript('addOrder', {
+        customer: pending.customer,
+        product: pending.newProduct,
+        price: pending.newPrice,
+        forcNew: true,
+      });
+      await client.replyMessage({
+        replyToken: event.replyToken,
+        messages: [{ type: 'text', text: `✅ 已另開新訂單！\n━━━━━━━━━━━━━━\n📋 訂單編號：${result.orderId}\n👤 顧客：${pending.customer}\n📦 商品：${pending.newProduct}\n💰 金額：${pending.newPrice} 元\n⏳ 狀態：待付款` }],
+      });
+      return;
+    }
 
     // 新增商品
     const addProductMatch = userMessage.match(/新增商品\s*[：:]\s*(.+?)\s+(\d+)\s*(\d*)\s*(\d*)/);
@@ -102,6 +146,21 @@ async function handleEvent(event) {
         product: addOrderMatch[2],
         price: addOrderMatch[3],
       });
+
+      // 偵測到同買家有待付款訂單
+      if (result.needMerge) {
+        pendingMerge[sourceId] = {
+          customer: addOrderMatch[1],
+          newProduct: addOrderMatch[2],
+          newPrice: addOrderMatch[3],
+        };
+        await client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: `⚠️ 偵測到同買家訂單！\n━━━━━━━━━━━━━━\n👤 顧客：${addOrderMatch[1]}\n📋 現有訂單：${result.existingOrderId}\n📦 現有商品：${result.existingProduct}\n💰 現有金額：${result.existingPrice} 元\n━━━━━━━━━━━━━━\n🆕 新增商品：${addOrderMatch[2]}\n💰 新增金額：${addOrderMatch[3]} 元\n━━━━━━━━━━━━━━\n要合併到現有訂單嗎？\n✅ 回覆「合併：${result.existingOrderId}」\n❌ 回覆「不合併」另開新單` }],
+        });
+        return;
+      }
+
       await client.replyMessage({
         replyToken: event.replyToken,
         messages: [{ type: 'text', text: `✅ 訂單已建立！\n━━━━━━━━━━━━━━\n📋 訂單編號：${result.orderId}\n👤 顧客：${addOrderMatch[1]}\n📦 商品：${addOrderMatch[2]}\n💰 金額：${addOrderMatch[3]} 元\n⏳ 狀態：待付款\n━━━━━━━━━━━━━━\n請將賣貨便連結傳給顧客 😊` }],
@@ -213,10 +272,36 @@ async function handleEvent(event) {
         });
         return;
       }
-      const text = `📋 進行中訂單（${active.length} 筆）\n━━━━━━━━━━━━━━\n` +
-        active.map(o =>
-          `🆔 ${o.id}\n👤 ${o.customer}\n📦 ${o.product}\n💰 ${o.price} 元\n⏳ ${o.status}`
-        ).join('\n━━━━━━━━━━━━━━\n');
+
+      // 依狀態分群顯示
+      const groups = {
+        '待付款': active.filter(o => o.status === '待付款'),
+        '待採購': active.filter(o => o.status === '已付款'),
+        '待出貨': active.filter(o => o.status === '已向廠商下單'),
+        '已出貨': active.filter(o => o.status === '已出貨'),
+      };
+
+      let text = `📋 訂單總覽（${active.length} 筆）\n━━━━━━━━━━━━━━\n`;
+      if (groups['待付款'].length > 0) {
+        text += `⏳ 待付款（${groups['待付款'].length} 筆）\n`;
+        text += groups['待付款'].map(o => `${o.id} ${o.customer}｜${o.product}｜${o.price}元`).join('\n');
+        text += '\n━━━━━━━━━━━━━━\n';
+      }
+      if (groups['待採購'].length > 0) {
+        text += `💳 待採購（${groups['待採購'].length} 筆）\n`;
+        text += groups['待採購'].map(o => `${o.id} ${o.customer}｜${o.product}｜${o.price}元`).join('\n');
+        text += '\n━━━━━━━━━━━━━━\n';
+      }
+      if (groups['待出貨'].length > 0) {
+        text += `🛒 待出貨（${groups['待出貨'].length} 筆）\n`;
+        text += groups['待出貨'].map(o => `${o.id} ${o.customer}｜${o.product}｜${o.price}元`).join('\n');
+        text += '\n━━━━━━━━━━━━━━\n';
+      }
+      if (groups['已出貨'].length > 0) {
+        text += `📦 已出貨（${groups['已出貨'].length} 筆）\n`;
+        text += groups['已出貨'].map(o => `${o.id} ${o.customer}｜${o.product}｜${o.price}元`).join('\n');
+      }
+
       await client.replyMessage({
         replyToken: event.replyToken,
         messages: [{ type: 'text', text }],
