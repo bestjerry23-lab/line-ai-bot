@@ -43,7 +43,7 @@ async function handleEvent(event) {
   if (event.type === 'join') {
     await client.replyMessage({
       replyToken: event.replyToken,
-      messages: [{ type: 'text', text: '大家好！我是貝拉 👋\n\n訂單管理指令：\n📋 新增訂單：顧客名稱 商品 金額\n💳 付款確認：訂單編號\n🛒 廠商下單：訂單編號 成本\n📦 已出貨：訂單編號\n✅ 已完成：訂單編號\n🔍 @貝拉 查詢訂單' }],
+      messages: [{ type: 'text', text: '大家好！我是貝拉 👋\n\n📋 訂單管理指令：\n新增訂單：顧客名稱 商品 金額\n付款確認：訂單編號\n廠商下單：訂單編號 成本\n已出貨：訂單編號\n已完成：訂單編號\n\n🔍 快速查詢：\n訂單總覽\n待付款\n待採購\n待出貨\n\n💬 其他問題：@貝拉 任何問題' }],
     });
     return;
   }
@@ -54,6 +54,7 @@ async function handleEvent(event) {
   const isGroup = event.source.type === 'group' || event.source.type === 'room';
 
   try {
+
     // 新增商品
     const addProductMatch = userMessage.match(/新增商品\s*[：:]\s*(.+?)\s+(\d+)\s*(\d*)\s*(\d*)/);
     if (addProductMatch) {
@@ -94,7 +95,6 @@ async function handleEvent(event) {
     }
 
     // 新增訂單
-    // 格式：新增訂單：顧客名稱 商品名稱 金額
     const addOrderMatch = userMessage.match(/新增訂單\s*[：:]\s*(.+?)\s+(.+?)\s+(\d+)/);
     if (addOrderMatch) {
       const result = await callScript('addOrder', {
@@ -104,13 +104,12 @@ async function handleEvent(event) {
       });
       await client.replyMessage({
         replyToken: event.replyToken,
-        messages: [{ type: 'text', text: `✅ 訂單已建立！\n📋 訂單編號：${result.orderId}\n👤 顧客：${addOrderMatch[1]}\n📦 商品：${addOrderMatch[2]}\n💰 金額：${addOrderMatch[3]} 元\n⏳ 狀態：待付款\n\n請將賣貨便連結傳給顧客 😊` }],
+        messages: [{ type: 'text', text: `✅ 訂單已建立！\n━━━━━━━━━━━━━━\n📋 訂單編號：${result.orderId}\n👤 顧客：${addOrderMatch[1]}\n📦 商品：${addOrderMatch[2]}\n💰 金額：${addOrderMatch[3]} 元\n⏳ 狀態：待付款\n━━━━━━━━━━━━━━\n請將賣貨便連結傳給顧客 😊` }],
       });
       return;
     }
 
     // 付款確認
-    // 格式：付款確認：訂單編號 備註(選填)
     const payMatch = userMessage.match(/付款確認\s*[：:]\s*(\S+)\s*(.*)/);
     if (payMatch) {
       const result = await callScript('updateOrder', {
@@ -126,14 +125,13 @@ async function handleEvent(event) {
       } else {
         await client.replyMessage({
           replyToken: event.replyToken,
-          messages: [{ type: 'text', text: `✅ 付款已確認！\n📋 訂單：${payMatch[1]}\n💳 狀態：已付款\n🛒 採購單：${result.purchaseId} 已建立\n\n記得去跟韓國廠商下單！` }],
+          messages: [{ type: 'text', text: `✅ 付款已確認！\n━━━━━━━━━━━━━━\n📋 訂單：${payMatch[1]}\n💳 狀態：已付款\n🛒 採購單：${result.purchaseId} 已建立\n━━━━━━━━━━━━━━\n記得去跟韓國廠商下單！` }],
         });
       }
       return;
     }
 
     // 廠商下單
-    // 格式：廠商下單：訂單編號 成本
     const purchaseMatch = userMessage.match(/廠商下單\s*[：:]\s*(\S+)\s*(\d*)/);
     if (purchaseMatch) {
       const result = await callScript('updateOrder', {
@@ -149,7 +147,7 @@ async function handleEvent(event) {
       } else {
         await client.replyMessage({
           replyToken: event.replyToken,
-          messages: [{ type: 'text', text: `✅ 廠商下單完成！\n📋 訂單：${purchaseMatch[1]}\n🛒 狀態：已向廠商下單\n⏳ 等待廠商出貨中...` }],
+          messages: [{ type: 'text', text: `✅ 廠商下單完成！\n━━━━━━━━━━━━━━\n📋 訂單：${purchaseMatch[1]}\n🛒 狀態：已向廠商下單\n⏳ 等待廠商出貨中...` }],
         });
       }
       return;
@@ -170,7 +168,7 @@ async function handleEvent(event) {
       } else {
         await client.replyMessage({
           replyToken: event.replyToken,
-          messages: [{ type: 'text', text: `✅ 已出貨！\n📋 訂單：${shipMatch[1]}\n📦 狀態：已出貨\n🚚 等待顧客收貨中...` }],
+          messages: [{ type: 'text', text: `✅ 已出貨！\n━━━━━━━━━━━━━━\n📋 訂單：${shipMatch[1]}\n📦 狀態：已出貨\n🚚 等待顧客收貨中...` }],
         });
       }
       return;
@@ -191,9 +189,64 @@ async function handleEvent(event) {
       } else {
         await client.replyMessage({
           replyToken: event.replyToken,
-          messages: [{ type: 'text', text: `🎉 訂單完成！\n📋 訂單：${doneMatch[1]}\n✅ 狀態：已完成\n📈 獲利：${result.profit} 元\n\n已自動寫入銷售紀錄！` }],
+          messages: [{ type: 'text', text: `🎉 訂單完成！\n━━━━━━━━━━━━━━\n📋 訂單：${doneMatch[1]}\n✅ 狀態：已完成\n📈 獲利：${result.profit} 元\n━━━━━━━━━━━━━━\n已自動寫入銷售紀錄！` }],
         });
       }
+      return;
+    }
+
+    // 訂單總覽
+    if (userMessage === '訂單總覽') {
+      const result = await callScript('getOrders', {});
+      if (!result.orders || result.orders.length === 0) {
+        await client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: '目前沒有任何訂單 😊' }],
+        });
+        return;
+      }
+      const active = result.orders.filter(o => o.status !== '已完成');
+      if (active.length === 0) {
+        await client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: '目前沒有進行中的訂單 🎉' }],
+        });
+        return;
+      }
+      const text = `📋 進行中訂單（${active.length} 筆）\n━━━━━━━━━━━━━━\n` +
+        active.map(o =>
+          `🆔 ${o.id}\n👤 ${o.customer}\n📦 ${o.product}\n💰 ${o.price} 元\n⏳ ${o.status}`
+        ).join('\n━━━━━━━━━━━━━━\n');
+      await client.replyMessage({
+        replyToken: event.replyToken,
+        messages: [{ type: 'text', text }],
+      });
+      return;
+    }
+
+    // 快速查詢各狀態訂單
+    const statusMap = {
+      '待付款': '待付款',
+      '待採購': '已付款',
+      '待出貨': '已向廠商下單',
+    };
+    if (statusMap[userMessage]) {
+      const result = await callScript('getOrders', { status: statusMap[userMessage] });
+      if (!result.orders || result.orders.length === 0) {
+        await client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: `目前沒有「${userMessage}」的訂單 😊` }],
+        });
+        return;
+      }
+      const text = `📋 ${userMessage}訂單（${result.orders.length} 筆）\n━━━━━━━━━━━━━━\n` +
+        result.orders.map(o =>
+          `🆔 ${o.id} | 👤 ${o.customer}\n📦 ${o.product} | 💰 ${o.price} 元`
+        ).join('\n━━━━━━━━━━━━━━\n');
+      await client.replyMessage({
+        replyToken: event.replyToken,
+        messages: [{ type: 'text', text }],
+      });
       return;
     }
 
