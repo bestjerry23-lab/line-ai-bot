@@ -12,6 +12,27 @@ const client = new line.messagingApi.MessagingApiClient({
   channelAccessToken: lineConfig.channelAccessToken,
 });
 
+const SHEET_ID = '1G-COhoJARyzEYMyt6iCFWCSA3vcLCOUvJfW_SkRfby0';
+
+// 從 Google 試算表讀取商品清單
+async function getProducts() {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv`;
+  const response = await fetch(url);
+  const text = await response.text();
+  
+  const rows = text.trim().split('\n').slice(1); // 跳過標題行
+  const products = rows.map(row => {
+    const cols = row.split(',').map(c => c.replace(/"/g, '').trim());
+    return {
+      name: cols[0] || '',
+      price: cols[1] || '',
+      note: cols[2] || '',
+    };
+  }).filter(p => p.name);
+  
+  return products;
+}
+
 app.post('/webhook', line.middleware(lineConfig), async (req, res) => {
   const events = req.body.events;
   await Promise.all(events.map(handleEvent));
@@ -24,7 +45,13 @@ async function handleEvent(event) {
   const userMessage = event.message.text;
 
   try {
-    const aiReply = await callAI(userMessage);
+    // 讀取商品清單
+    const products = await getProducts();
+    const productList = products.map(p => 
+      `商品：${p.name}｜價格：${p.price}｜備註：${p.note}`
+    ).join('\n');
+
+    const aiReply = await callAI(userMessage, productList);
     await client.replyMessage({
       replyToken: event.replyToken,
       messages: [{ type: 'text', text: aiReply }],
@@ -34,7 +61,7 @@ async function handleEvent(event) {
   }
 }
 
-async function callAI(userMessage) {
+async function callAI(userMessage, productList) {
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -48,31 +75,19 @@ async function callAI(userMessage) {
           role: 'system',
           content: `你是 Jerry 的私人 AI 助理，名字叫做「貝拉」。
 
-你的個性是輕鬆、友善、有點俏皮，說話像朋友一樣自然，適時使用 emoji 讓對話更生動。
+你的個性是輕鬆、友善、有點俏皮，身材性感，最喜歡JERRY，說話像朋友一樣自然，適時使用 emoji 讓對話更生動。
+
+以下是目前的商品清單（來自 Google 試算表，即時更新）：
+${productList || '目前尚無商品資料'}
 
 你可以幫 Jerry 做任何事，包括：
+【商品查詢】回答關於商品價格、庫存、描述的問題
+【代購業務】幫忙估算代購費用和運費、查詢日韓流行品牌
+【工作效率】寫文案、翻譯、整理筆記
+【生活助理】推薦台南美食、景點、規劃行程
+【隨時聊天】閒聊、抒發心情、腦力激盪
 
-【工作效率】
-- 幫忙寫文案、回覆訊息、整理筆記
-- 翻譯（中文、英文、日文、韓文）
-- 提供建議和想法
-
-【代購業務】
-- 幫忙估算代購費用和運費
-- 查詢日韓流行品牌資訊
-- 提供穿搭建議和流行趨勢
-
-【生活助理】
-- 推薦台南美食、景點
-- 規劃旅遊行程
-- 購物比較和建議
-
-【隨時聊天】
-- 閒聊、抒發心情
-- 回答任何奇怪的問題
-- 腦力激盪
-
-請用繁體中文回答，語氣輕鬆自然，像朋友聊天一樣！`
+請用繁體中文回答，語氣輕鬆自然！`
         },
         {
           role: 'user',
@@ -84,7 +99,6 @@ async function callAI(userMessage) {
 
   const text = await response.text();
   console.log('AI response:', text);
-
   const data = JSON.parse(text);
 
   if (!data.choices || !data.choices[0]) {
