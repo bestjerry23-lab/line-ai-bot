@@ -59,7 +59,7 @@ async function handleEvent(event) {
   try {
     // 新增商品指令
     // 格式：新增商品：商品名稱 售價 成本 庫存
-    const addMatch = userMessage.match(/新增商品[：:]\s*(.+?)\s+(\d+)\s*(\d*)\s*(\d*)/);
+    const addMatch = userMessage.match(/新增商品\s*[：:]\s*(.+?)\s+(\d+)\s*(\d*)\s*(\d*)/);
     if (addMatch) {
       const result = await callScript('addProduct', {
         name: addMatch[1],
@@ -77,7 +77,7 @@ async function handleEvent(event) {
 
     // 賣出指令
     // 格式：賣出：商品編號或名稱 數量
-    const saleMatch = userMessage.match(/賣出[：:]\s*(.+?)\s+(\d+)/);
+    const saleMatch = userMessage.match(/賣出\s*[：:]\s*(.+?)\s+(\d+)/);
     if (saleMatch) {
       const result = await callScript('addSale', {
         name: saleMatch[1],
