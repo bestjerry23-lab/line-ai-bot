@@ -42,7 +42,7 @@ async function callAI(userMessage) {
       'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
     },
     body: JSON.stringify({
-      model: 'deepseek/deepseek-r1-distill-llama-70b:free',
+      model: 'openrouter/free',
       messages: [
         {
           role: 'system',
