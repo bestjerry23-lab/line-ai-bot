@@ -42,7 +42,7 @@ async function callAI(userMessage) {
       'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
     },
     body: JSON.stringify({
-      model: 'google/gemini-2.0-flash-exp:free',
+      model: 'deepseek/deepseek-r1-distill-llama-70b:free',
       messages: [
         { role: 'system', content: '你是一個親切的客服助理，請用繁體中文回答用戶的問題。' },
         { role: 'user', content: userMessage }
