@@ -15,7 +15,6 @@ const client = new line.messagingApi.MessagingApiClient({
 const SHEET_ID = '1G-COhoJARyzEYMyt6iCFWCSA3vcLCOUvJfW_SkRfby0';
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw1thsiQXBS2oSIoJGsqfP9O5UGkIZ4q6hJSL2D_PHArxnAAJeABZOz_yOM_OF6dORp/exec';
 
-// 呼叫 Apps Script
 async function callScript(action, params = {}) {
   const response = await fetch(APPS_SCRIPT_URL, {
     method: 'POST',
@@ -26,10 +25,9 @@ async function callScript(action, params = {}) {
   return response.json();
 }
 
-// 讀取商品清單（給 AI 用）
 async function getProductList() {
   const result = await callScript('getProducts');
-  if (!result.products) return '目前尚無商品資料';
+  if (!result.products || result.products.length === 0) return '目前尚無商品資料';
   return result.products.map(p =>
     `[${p.id}] ${p.name}｜售價：${p.price}元｜庫存：${p.stock}｜狀態：${p.status}`
   ).join('\n');
@@ -42,11 +40,10 @@ app.post('/webhook', line.middleware(lineConfig), async (req, res) => {
 });
 
 async function handleEvent(event) {
-  // 自動接受群組邀請
   if (event.type === 'join') {
     await client.replyMessage({
       replyToken: event.replyToken,
-      messages: [{ type: 'text', text: '大家好！我是貝拉 👋\n\n我可以幫你：\n📦 新增商品：新增商品：商品名稱 售價 成本 庫存\n💰 記錄賣出：賣出：商品編號或名稱 數量\n🔍 查詢商品：@貝拉 有沒有XXX？\n💬 其他問題：@貝拉 任何問題' }],
+      messages: [{ type: 'text', text: '大家好！我是貝拉 👋\n\n訂單管理指令：\n📋 新增訂單：顧客名稱 商品 金額\n💳 付款確認：訂單編號\n🛒 廠商下單：訂單編號 成本\n📦 已出貨：訂單編號\n✅ 已完成：訂單編號\n🔍 @貝拉 查詢訂單' }],
     });
     return;
   }
@@ -57,26 +54,24 @@ async function handleEvent(event) {
   const isGroup = event.source.type === 'group' || event.source.type === 'room';
 
   try {
-    // 新增商品指令
-    // 格式：新增商品：商品名稱 售價 成本 庫存
-    const addMatch = userMessage.match(/新增商品\s*[：:]\s*(.+?)\s+(\d+)\s*(\d*)\s*(\d*)/);
-    if (addMatch) {
+    // 新增商品
+    const addProductMatch = userMessage.match(/新增商品\s*[：:]\s*(.+?)\s+(\d+)\s*(\d*)\s*(\d*)/);
+    if (addProductMatch) {
       const result = await callScript('addProduct', {
-        name: addMatch[1],
-        price: addMatch[2],
-        cost: addMatch[3] || 0,
-        stock: addMatch[4] || 0,
+        name: addProductMatch[1],
+        price: addProductMatch[2],
+        cost: addProductMatch[3] || 0,
+        stock: addProductMatch[4] || 0,
         status: '現貨',
       });
       await client.replyMessage({
         replyToken: event.replyToken,
-        messages: [{ type: 'text', text: `✅ 商品已新增！\n🆔 編號：${result.id}\n📦 商品：${addMatch[1]}\n💰 售價：${addMatch[2]} 元\n📊 成本：${addMatch[3] || 0} 元\n🏷️ 庫存：${addMatch[4] || 0} 件` }],
+        messages: [{ type: 'text', text: `✅ 商品已新增！\n🆔 編號：${result.id}\n📦 商品：${addProductMatch[1]}\n💰 售價：${addProductMatch[2]} 元` }],
       });
       return;
     }
 
-    // 賣出指令
-    // 格式：賣出：商品編號或名稱 數量
+    // 賣出
     const saleMatch = userMessage.match(/賣出\s*[：:]\s*(.+?)\s+(\d+)/);
     if (saleMatch) {
       const result = await callScript('addSale', {
@@ -98,7 +93,111 @@ async function handleEvent(event) {
       return;
     }
 
-    // 群組中只回應 @貝拉 開頭
+    // 新增訂單
+    // 格式：新增訂單：顧客名稱 商品名稱 金額
+    const addOrderMatch = userMessage.match(/新增訂單\s*[：:]\s*(.+?)\s+(.+?)\s+(\d+)/);
+    if (addOrderMatch) {
+      const result = await callScript('addOrder', {
+        customer: addOrderMatch[1],
+        product: addOrderMatch[2],
+        price: addOrderMatch[3],
+      });
+      await client.replyMessage({
+        replyToken: event.replyToken,
+        messages: [{ type: 'text', text: `✅ 訂單已建立！\n📋 訂單編號：${result.orderId}\n👤 顧客：${addOrderMatch[1]}\n📦 商品：${addOrderMatch[2]}\n💰 金額：${addOrderMatch[3]} 元\n⏳ 狀態：待付款\n\n請將賣貨便連結傳給顧客 😊` }],
+      });
+      return;
+    }
+
+    // 付款確認
+    // 格式：付款確認：訂單編號 備註(選填)
+    const payMatch = userMessage.match(/付款確認\s*[：:]\s*(\S+)\s*(.*)/);
+    if (payMatch) {
+      const result = await callScript('updateOrder', {
+        orderId: payMatch[1],
+        status: '已付款',
+        note: payMatch[2] || '',
+      });
+      if (result.error) {
+        await client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: `❌ ${result.error}` }],
+        });
+      } else {
+        await client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: `✅ 付款已確認！\n📋 訂單：${payMatch[1]}\n💳 狀態：已付款\n🛒 採購單：${result.purchaseId} 已建立\n\n記得去跟韓國廠商下單！` }],
+        });
+      }
+      return;
+    }
+
+    // 廠商下單
+    // 格式：廠商下單：訂單編號 成本
+    const purchaseMatch = userMessage.match(/廠商下單\s*[：:]\s*(\S+)\s*(\d*)/);
+    if (purchaseMatch) {
+      const result = await callScript('updateOrder', {
+        orderId: purchaseMatch[1],
+        status: '已向廠商下單',
+        cost: purchaseMatch[2] || 0,
+      });
+      if (result.error) {
+        await client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: `❌ ${result.error}` }],
+        });
+      } else {
+        await client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: `✅ 廠商下單完成！\n📋 訂單：${purchaseMatch[1]}\n🛒 狀態：已向廠商下單\n⏳ 等待廠商出貨中...` }],
+        });
+      }
+      return;
+    }
+
+    // 已出貨
+    const shipMatch = userMessage.match(/已出貨\s*[：:]\s*(\S+)/);
+    if (shipMatch) {
+      const result = await callScript('updateOrder', {
+        orderId: shipMatch[1],
+        status: '已出貨',
+      });
+      if (result.error) {
+        await client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: `❌ ${result.error}` }],
+        });
+      } else {
+        await client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: `✅ 已出貨！\n📋 訂單：${shipMatch[1]}\n📦 狀態：已出貨\n🚚 等待顧客收貨中...` }],
+        });
+      }
+      return;
+    }
+
+    // 已完成
+    const doneMatch = userMessage.match(/已完成\s*[：:]\s*(\S+)/);
+    if (doneMatch) {
+      const result = await callScript('updateOrder', {
+        orderId: doneMatch[1],
+        status: '已完成',
+      });
+      if (result.error) {
+        await client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: `❌ ${result.error}` }],
+        });
+      } else {
+        await client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: `🎉 訂單完成！\n📋 訂單：${doneMatch[1]}\n✅ 狀態：已完成\n📈 獲利：${result.profit} 元\n\n已自動寫入銷售紀錄！` }],
+        });
+      }
+      return;
+    }
+
+    // 群組中只回應 @貝拉
     if (isGroup && !userMessage.startsWith('@貝拉')) return;
 
     const question = userMessage.replace('@貝拉', '').trim();
@@ -134,9 +233,10 @@ async function callAI(userMessage, productList) {
 ${productList}
 
 你可以幫 Jerry 做任何事：
+【訂單管理】查詢訂單狀態、待處理訂單、本月訂單數量
 【商品查詢】回答關於商品價格、庫存、狀態的問題
-【代購業務】估算代購費用和運費、查詢日韓流行品牌資訊
-【工作效率】寫文案、翻譯、整理筆記
+【代購業務】估算代購費用和運費、查詢韓國流行品牌資訊
+【工作效率】寫文案、翻譯韓文、整理筆記
 【生活助理】推薦台南美食、景點、規劃行程
 【隨時聊天】閒聊、抒發心情、腦力激盪
 
