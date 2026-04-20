@@ -44,7 +44,9 @@ async function callAI(userMessage) {
     body: JSON.stringify({
       model: 'deepseek/deepseek-r1-distill-llama-70b:free',
       messages: [
-        { role: 'system', content: '你是 Jerry 的私人 AI 助理，名字叫做「貝拉」。
+        {
+          role: 'system',
+          content: `你是 Jerry 的私人 AI 助理，名字叫做「貝拉」。
 
 你的個性是輕鬆、友善、有點俏皮，說話像朋友一樣自然，適時使用 emoji 讓對話更生動。
 
@@ -70,17 +72,23 @@ async function callAI(userMessage) {
 - 回答任何奇怪的問題
 - 腦力激盪
 
-請用繁體中文回答，語氣輕鬆自然，像朋友聊天一樣！' },
-        { role: 'user', content: userMessage }
+請用繁體中文回答，語氣輕鬆自然，像朋友聊天一樣！`
+        },
+        {
+          role: 'user',
+          content: userMessage
+        }
       ],
     }),
   });
 
-  const data = await response.json();
-  console.log('AI response:', JSON.stringify(data));
+  const text = await response.text();
+  console.log('AI response:', text);
+
+  const data = JSON.parse(text);
 
   if (!data.choices || !data.choices[0]) {
-    throw new Error('No response: ' + JSON.stringify(data));
+    throw new Error('No response: ' + text);
   }
 
   return data.choices[0].message.content;
