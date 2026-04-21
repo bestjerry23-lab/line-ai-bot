@@ -16,6 +16,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw1thsiQXBS2oSI
 const LIFF_URL = 'https://liff.line.me/2009848785-XeUcZFkH';
 
 const pendingMerge = {};
+const pendingWaiting = {}; // 等待圖片後的待訂資訊暫存
 
 async function callScript(action, params = {}) {
   const response = await fetch(APPS_SCRIPT_URL, {
@@ -45,7 +46,29 @@ async function handleEvent(event) {
   if (event.type === 'join') {
     await client.replyMessage({
       replyToken: event.replyToken,
-      messages: [{ type: 'text', text: '大家好！我是貝拉 👋\n\n📋 訂單管理：\n新增訂單：顧客 商品 金額\n付款確認：訂單編號\n廠商下單：訂單編號 成本\n已出貨：訂單編號\n已完成：訂單編號\n\n📝 待訂管理：\n新增待訂：顧客 商品 金額 備註\n待訂清單\n待訂轉訂單：待訂編號\n刪除待訂：待訂編號\n\n🔍 快速查詢：\n訂單總覽\n待付款 / 待採購 / 待出貨\n查顧客：名稱\n查商品：名稱\n查訂單：編號\n\n📦 收貨核對：核對收貨\n\n💬 其他：@貝拉 任何問題' }],
+      messages: [{ type: 'text', text: '大家好！我是貝拉 👋\n\n📋 訂單管理：\n新增訂單：顧客 商品 金額\n付款確認：訂單編號\n廠商下單：訂單編號 成本\n已出貨：訂單編號\n已完成：訂單編號\n\n📝 待訂管理：\n新增待訂：顧客 商品 金額 備註 連結(選填)\n（或先傳圖片再輸入待訂資訊）\n待訂清單\n待訂轉訂單：待訂編號\n刪除待訂：待訂編號\n\n🔍 快速查詢：\n訂單總覽 / 待付款 / 待採購 / 待出貨\n查顧客：名稱\n查商品：名稱\n查訂單：編號\n\n📦 核對收貨\n💬 @貝拉 任何問題' }],
+    });
+    return;
+  }
+
+  const sourceId = event.source.groupId || event.source.roomId || event.source.userId;
+  const isGroup = event.source.type === 'group' || event.source.type === 'room';
+
+  // 處理圖片訊息
+  if (event.type === 'message' && event.message.type === 'image') {
+    const imageId = event.message.id;
+    const imageUrl = `https://api-data.line.me/v2/bot/message/${imageId}/content`;
+
+    // 暫存圖片，等待待訂資訊
+    pendingWaiting[sourceId] = {
+      imageUrl: imageUrl,
+      imageId: imageId,
+      timestamp: Date.now(),
+    };
+
+    await client.replyMessage({
+      replyToken: event.replyToken,
+      messages: [{ type: 'text', text: '📷 收到圖片！\n請輸入待訂資訊：\n\n格式：顧客名稱 商品名稱 金額 備註(選填)\n範例：小美 韓國外套 2180 等補貨' }],
     });
     return;
   }
@@ -53,10 +76,36 @@ async function handleEvent(event) {
   if (event.type !== 'message' || event.message.type !== 'text') return;
 
   const userMessage = event.message.text.trim();
-  const isGroup = event.source.type === 'group' || event.source.type === 'room';
-  const sourceId = event.source.groupId || event.source.roomId || event.source.userId;
 
   try {
+
+    // 收到圖片後輸入待訂資訊
+    if (pendingWaiting[sourceId]) {
+      const pending = pendingWaiting[sourceId];
+      // 檢查是否在5分鐘內
+      if (Date.now() - pending.timestamp < 5 * 60 * 1000) {
+        // 解析格式：顧客 商品 金額 備註
+        const parts = userMessage.match(/^(.+?)\s+(.+?)\s+(\d+)\s*(.*)/);
+        if (parts) {
+          const result = await callScript('addWaiting', {
+            customer: parts[1],
+            product: parts[2],
+            price: parts[3],
+            note: parts[4] || '',
+            link: '',
+            imageUrl: `https://api-data.line.me/v2/bot/message/${pending.imageId}/content`,
+          });
+          delete pendingWaiting[sourceId];
+          await client.replyMessage({
+            replyToken: event.replyToken,
+            messages: [{ type: 'text', text: `📝 待訂已記錄！\n━━━━━━━━━━━━━━\n🆔 待訂編號：${result.waitId}\n👤 顧客：${parts[1]}\n📦 商品：${parts[2]}\n💰 金額：${parts[3]} 元\n📋 備註：${parts[4] || '無'}\n🖼️ 圖片：已儲存\n━━━━━━━━━━━━━━\n補貨或湊單後傳「待訂轉訂單：${result.waitId}」` }],
+          });
+          return;
+        }
+      } else {
+        delete pendingWaiting[sourceId];
+      }
+    }
 
     // 合併訂單確認
     const mergeMatch = userMessage.match(/合併\s*[：:]?\s*(\S+)/);
@@ -251,19 +300,27 @@ async function handleEvent(event) {
       return;
     }
 
-    // 新增待訂
-    // 格式：新增待訂：顧客 商品 金額 備註(選填)
+    // 新增待訂（含連結）
+    // 格式：新增待訂：顧客 商品 金額 備註 https://...
     const addWaitMatch = userMessage.match(/新增待訂\s*[：:]\s*(.+?)\s+(.+?)\s+(\d+)\s*(.*)/);
     if (addWaitMatch) {
+      const extra = addWaitMatch[4] || '';
+      // 提取連結
+      const linkMatch = extra.match(/(https?:\/\/\S+)/);
+      const link = linkMatch ? linkMatch[1] : '';
+      const note = extra.replace(link, '').trim();
+
       const result = await callScript('addWaiting', {
         customer: addWaitMatch[1],
         product: addWaitMatch[2],
         price: addWaitMatch[3],
-        note: addWaitMatch[4] || '',
+        note: note,
+        link: link,
+        imageUrl: '',
       });
       await client.replyMessage({
         replyToken: event.replyToken,
-        messages: [{ type: 'text', text: `📝 待訂已記錄！\n━━━━━━━━━━━━━━\n🆔 待訂編號：${result.waitId}\n👤 顧客：${addWaitMatch[1]}\n📦 商品：${addWaitMatch[2]}\n💰 金額：${addWaitMatch[3]} 元\n📋 備註：${addWaitMatch[4] || '無'}\n━━━━━━━━━━━━━━\n補貨或湊單後傳「待訂轉訂單：${result.waitId}」` }],
+        messages: [{ type: 'text', text: `📝 待訂已記錄！\n━━━━━━━━━━━━━━\n🆔 待訂編號：${result.waitId}\n👤 顧客：${addWaitMatch[1]}\n📦 商品：${addWaitMatch[2]}\n💰 金額：${addWaitMatch[3]} 元\n📋 備註：${note || '無'}\n🔗 連結：${link || '無'}\n━━━━━━━━━━━━━━\n補貨或湊單後傳「待訂轉訂單：${result.waitId}」` }],
       });
       return;
     }
@@ -280,7 +337,7 @@ async function handleEvent(event) {
       }
       const text = `📝 待訂清單（${result.list.length} 筆）\n━━━━━━━━━━━━━━\n` +
         result.list.map(w =>
-          `🆔 ${w.id}\n👤 ${w.customer}\n📦 ${w.product}\n💰 ${w.price} 元\n📋 ${w.note || '無備註'}\n📅 ${w.date}`
+          `🆔 ${w.id}\n👤 ${w.customer}\n📦 ${w.product}\n💰 ${w.price} 元\n📋 ${w.note || '無備註'}${w.link ? '\n🔗 ' + w.link : ''}${w.imageUrl ? '\n🖼️ 有圖片' : ''}\n📅 ${w.date}`
         ).join('\n━━━━━━━━━━━━━━\n');
       await client.replyMessage({
         replyToken: event.replyToken,
@@ -336,11 +393,7 @@ async function handleEvent(event) {
             type: 'buttons',
             title: '🛍️ 核對收貨系統',
             text: '點下方按鈕開啟核對介面',
-            actions: [{
-              type: 'uri',
-              label: '開啟核對介面',
-              uri: LIFF_URL,
-            }],
+            actions: [{ type: 'uri', label: '開啟核對介面', uri: LIFF_URL }],
           },
         }],
       });
@@ -468,11 +521,7 @@ async function handleEvent(event) {
     }
 
     // 快速查詢各狀態
-    const statusMap = {
-      '待付款': '待付款',
-      '待採購': '已付款',
-      '待出貨': '已向廠商下單',
-    };
+    const statusMap = { '待付款': '待付款', '待採購': '已付款', '待出貨': '已向廠商下單' };
     if (statusMap[userMessage]) {
       const result = await callScript('getOrders', { status: statusMap[userMessage] });
       if (!result.orders || result.orders.length === 0) {
