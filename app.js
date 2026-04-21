@@ -13,6 +13,7 @@ const client = new line.messagingApi.MessagingApiClient({
 });
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw1thsiQXBS2oSIoJGsqfP9O5UGkIZ4q6hJSL2D_PHArxnAAJeABZOz_yOM_OF6dORp/exec';
+const LIFF_URL = 'https://liff.line.me/2009848785-XeUcZFkH';
 
 const pendingMerge = {};
 
@@ -44,7 +45,7 @@ async function handleEvent(event) {
   if (event.type === 'join') {
     await client.replyMessage({
       replyToken: event.replyToken,
-      messages: [{ type: 'text', text: '大家好！我是貝拉 👋\n\n📋 訂單管理：\n新增訂單：顧客 商品 金額\n付款確認：訂單編號\n廠商下單：訂單編號 成本\n已出貨：訂單編號\n已完成：訂單編號\n\n🔍 快速查詢：\n訂單總覽\n待付款 / 待採購 / 待出貨\n查顧客：名稱\n查商品：名稱\n查訂單：編號\n\n💬 其他：@貝拉 任何問題' }],
+      messages: [{ type: 'text', text: '大家好！我是貝拉 👋\n\n📋 訂單管理：\n新增訂單：顧客 商品 金額\n付款確認：訂單編號\n廠商下單：訂單編號 成本\n已出貨：訂單編號\n已完成：訂單編號\n\n🔍 快速查詢：\n訂單總覽\n待付款 / 待採購 / 待出貨\n查顧客：名稱\n查商品：名稱\n查訂單：編號\n\n📦 收貨核對：\n核對收貨\n\n💬 其他：@貝拉 任何問題' }],
     });
     return;
   }
@@ -247,6 +248,28 @@ async function handleEvent(event) {
           messages: [{ type: 'text', text: `🎉 訂單完成！\n━━━━━━━━━━━━━━\n📋 訂單：${doneMatch[1]}\n✅ 狀態：已完成\n📈 獲利：${result.profit} 元\n━━━━━━━━━━━━━━\n已自動寫入銷售紀錄！` }],
         });
       }
+      return;
+    }
+
+    // 核對收貨
+    if (userMessage === '核對收貨' || userMessage === '開始核對' || userMessage === '叫出訂購單') {
+      await client.replyMessage({
+        replyToken: event.replyToken,
+        messages: [{
+          type: 'template',
+          altText: '核對收貨系統',
+          template: {
+            type: 'buttons',
+            title: '🛍️ 核對收貨系統',
+            text: '點下方按鈕開啟核對介面',
+            actions: [{
+              type: 'uri',
+              label: '開啟核對介面',
+              uri: LIFF_URL,
+            }],
+          },
+        }],
+      });
       return;
     }
 
