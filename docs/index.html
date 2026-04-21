@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>貝拉 核對收貨</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; }
+.wrap { padding: 1rem; max-width: 480px; margin: 0 auto; }
+.header { background: #06C755; color: white; padding: 14px 16px; font-size: 16px; font-weight: 600; text-align: center; position: sticky; top: 0; z-index: 10; }
+.section { margin-bottom: 1.25rem; }
+.label { font-size: 13px; color: #666; margin-bottom: 6px; font-weight: 500; }
+.row { display: flex; gap: 8px; margin-bottom: 8px; }
+.row input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 10px; font-size: 14px; background: white; }
+.row input[type="number"] { width: 72px; flex: none; }
+input[style*="width:100%"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 10px; font-size: 14px; background: white; }
+button { padding: 9px 16px; border: 1px solid #ddd; border-radius: 10px; background: #fff; cursor: pointer; font-size: 13px; font-weight: 500; }
+button:active { opacity: 0.7; }
+.btn-green { background: #06C755; color: white; border-color: #06C755; width: 100%; padding: 12px; font-size: 15px; }
+.item-row { display: flex; align-items: center; gap: 10px; padding: 12px; background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; margin-bottom: 8px; }
+.item-row.checked { background: #f0faf4; border-color: #a8e6c1; }
+.item-row.shortage { background: #fff0f0; border-color: #f5a0a0; }
+.item-name { flex: 1; font-size: 14px; font-weight: 500; }
+.item-qty { font-size: 12px; color: #888; }
+.check-btn { width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid #ddd; background: #fff; cursor: pointer; font-size: 16px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.check-btn.ok { background: #e8f8ef; border-color: #52c77a; }
+.check-btn.err { background: #fdecea; border-color: #e57373; }
+.status-badge { font-size: 11px; padding: 3px 9px; border-radius: 999px; flex-shrink: 0; font-weight: 500; }
+.badge-ok { background: #e8f8ef; color: #2e7d52; }
+.badge-err { background: #fdecea; color: #c0392b; }
+.badge-pending { background: #f5f5f5; color: #888; }
+.summary-bar { padding: 12px 14px; border-radius: 10px; border: 1px solid #e0e0e0; background: #fff; font-size: 13px; display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+.tabs { display: flex; gap: 6px; margin-bottom: 1rem; }
+.tab { flex: 1; padding: 10px; font-size: 13px; border-radius: 10px; border: 1px solid #e0e0e0; background: #f5f5f5; cursor: pointer; text-align: center; color: #666; font-weight: 500; }
+.tab.active { background: #fff; color: #06C755; border-color: #06C755; }
+.order-card { padding: 12px 14px; background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; margin-bottom: 8px; cursor: pointer; }
+.order-card:active { border-color: #06C755; }
+.order-title { font-size: 14px; font-weight: 600; }
+.order-meta { font-size: 12px; color: #888; margin-top: 3px; }
+.divider { border: none; border-top: 1px solid #eee; margin: 1rem 0; }
+.empty { text-align: center; color: #bbb; font-size: 13px; padding: 3rem 0; }
+.back-row { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; }
+.back-row span { font-size: 15px; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="header">🛍️ 貝拉 核對收貨</div>
+<div class="wrap">
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('check')" id="tab-check">核對收貨</div>
+  <div class="tab" onclick="switchTab('orders')" id="tab-orders">歷史訂單</div>
+  <div class="tab" onclick="switchTab('new')" id="tab-new">新增訂單</div>
+</div>
+
+<!-- 新增訂單 -->
+<div id="view-new" style="display:none">
+  <div class="section">
+    <div class="label">訂單名稱</div>
+    <input type="text" id="order-name" placeholder="例：2024/06 韓國補貨" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;font-size:14px;background:white;display:block;margin-bottom:0">
+  </div>
+  <div class="section">
+    <div class="label">新增商品</div>
+    <div class="row">
+      <input type="text" id="item-input" placeholder="商品名稱" onkeydown="if(event.key==='Enter')addItem()">
+      <input type="number" id="qty-input" placeholder="數量" min="1" value="1">
+      <button onclick="addItem()">新增</button>
+    </div>
+    <div id="new-items-list"></div>
+  </div>
+  <button class="btn-green" onclick="saveOrder()">儲存訂單</button>
+</div>
+
+<!-- 歷史訂單 -->
+<div id="view-orders" style="display:none">
+  <div id="orders-list"></div>
+</div>
+
+<!-- 核對收貨 -->
+<div id="view-check">
+  <div id="check-select" class="section">
+    <div class="label">選擇要核對的訂單</div>
+    <div id="check-order-list"></div>
+  </div>
+  <div id="check-content" style="display:none">
+    <div class="back-row">
+      <button onclick="backToSelect()">← 返回</button>
+      <span id="check-title"></span>
+    </div>
+    <div id="check-items"></div>
+    <div class="summary-bar">
+      <span id="summary-text">尚未開始核對</span>
+      <button onclick="exportResult()">📋 匯出</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+let orders = JSON.parse(localStorage.getItem('bella_orders') || '[]');
+let newItems = [];
+let activeOrderId = null;
+let checkState = {};
+
+function switchTab(t) {
+  ['check','orders','new'].forEach(n => {
+    document.getElementById('view-'+n).style.display = n===t ? '' : 'none';
+    document.getElementById('tab-'+n).className = 'tab' + (n===t ? ' active' : '');
+  });
+  if(t==='orders') renderOrders();
+  if(t==='check') renderCheckSelect();
+}
+
+function addItem() {
+  const name = document.getElementById('item-input').value.trim();
+  const qty = parseInt(document.getElementById('qty-input').value) || 1;
+  if(!name) return;
+  newItems.push({ id: Date.now()+'_'+Math.random(), name, qty });
+  document.getElementById('item-input').value = '';
+  document.getElementById('qty-input').value = 1;
+  renderNewItems();
+}
+
+function removeNewItem(id) {
+  newItems = newItems.filter(i => i.id !== id);
+  renderNewItems();
+}
+
+function renderNewItems() {
+  const el = document.getElementById('new-items-list');
+  if(!newItems.length) { el.innerHTML = '<div class="empty">尚未新增商品</div>'; return; }
+  el.innerHTML = newItems.map(i => `
+    <div class="item-row">
+      <div class="item-name">${i.name}</div>
+      <div class="item-qty">x${i.qty}</div>
+      <button class="check-btn err" onclick="removeNewItem('${i.id}')">✕</button>
+    </div>`).join('');
+}
+
+function saveOrder() {
+  const name = document.getElementById('order-name').value.trim() || '未命名訂單';
+  if(!newItems.length) { alert('請至少新增一項商品'); return; }
+  const order = { id: Date.now(), name, date: new Date().toLocaleDateString('zh-TW'), items: [...newItems] };
+  orders.unshift(order);
+  localStorage.setItem('bella_orders', JSON.stringify(orders));
+  newItems = [];
+  document.getElementById('order-name').value = '';
+  renderNewItems();
+  alert('訂單已儲存！');
+  switchTab('check');
+}
+
+function renderOrders() {
+  const el = document.getElementById('orders-list');
+  if(!orders.length) { el.innerHTML = '<div class="empty">尚無訂單記錄</div>'; return; }
+  el.innerHTML = orders.map(o => `
+    <div class="order-card">
+      <div class="order-title">${o.name}</div>
+      <div class="order-meta">${o.date}・${o.items.length} 項商品</div>
+    </div>`).join('');
+}
+
+function renderCheckSelect() {
+  const el = document.getElementById('check-order-list');
+  document.getElementById('check-select').style.display = '';
+  document.getElementById('check-content').style.display = 'none';
+  if(!orders.length) { el.innerHTML = '<div class="empty">請先至「新增訂單」建立訂單</div>'; return; }
+  el.innerHTML = orders.map(o => `
+    <div class="order-card" onclick="startCheck('${o.id}')">
+      <div class="order-title">${o.name}</div>
+      <div class="order-meta">${o.date}・${o.items.length} 項商品</div>
+    </div>`).join('');
+}
+
+function startCheck(id) {
+  activeOrderId = id;
+  const order = orders.find(o => o.id == id);
+  if(!order) return;
+  checkState = {};
+  order.items.forEach(i => { checkState[i.id] = { status: 'pending' }; });
+  document.getElementById('check-title').textContent = order.name;
+  document.getElementById('check-select').style.display = 'none';
+  document.getElementById('check-content').style.display = '';
+  renderCheckItems();
+}
+
+function backToSelect() {
+  document.getElementById('check-select').style.display = '';
+  document.getElementById('check-content').style.display = 'none';
+  renderCheckSelect();
+}
+
+function setStatus(itemId, status) {
+  checkState[itemId].status = status;
+  renderCheckItems();
+}
+
+function renderCheckItems() {
+  const order = orders.find(o => o.id == activeOrderId);
+  const el = document.getElementById('check-items');
+  let ok=0, err=0, pending=0;
+  el.innerHTML = order.items.map(i => {
+    const s = checkState[i.id];
+    let cls = s.status==='ok' ? 'checked' : s.status==='err' ? 'shortage' : '';
+    let badge = s.status==='ok'
+      ? '<span class="status-badge badge-ok">✓ 正常</span>'
+      : s.status==='err'
+      ? '<span class="status-badge badge-err">✕ 異常</span>'
+      : '<span class="status-badge badge-pending">未核對</span>';
+    if(s.status==='ok') ok++;
+    else if(s.status==='err') err++;
+    else pending++;
+    return `<div class="item-row ${cls}">
+      <div style="flex:1">
+        <div class="item-name">${i.name}</div>
+        <div class="item-qty" style="margin-top:3px">訂購：${i.qty} 件</div>
+      </div>
+      ${badge}
+      <button class="check-btn ok" onclick="setStatus('${i.id}','ok')">✓</button>
+      <button class="check-btn err" onclick="setStatus('${i.id}','err')">✕</button>
+    </div>`;
+  }).join('');
+  const total = order.items.length;
+  const txt = document.getElementById('summary-text');
+  if(pending > 0) txt.innerHTML = `<span style="color:#888">還剩 ${pending} 項未核對</span>`;
+  else if(err > 0) txt.innerHTML = `<span style="color:#c0392b">發現 ${err} 項異常，${ok} 項正常</span>`;
+  else txt.innerHTML = `<span style="color:#2e7d52">全部 ${total} 項完成 ✓</span>`;
+}
+
+function exportResult() {
+  const order = orders.find(o => o.id == activeOrderId);
+  if(!order) return;
+  let lines = [`【核對結果】${order.name}`, `日期：${new Date().toLocaleDateString('zh-TW')}`, ''];
+  order.items.forEach(i => {
+    const s = checkState[i.id];
+    const mark = s.status==='ok' ? '✓ 正常' : s.status==='err' ? '✕ 異常' : '? 未核對';
+    lines.push(`${mark}  ${i.name}（訂購 ${i.qty} 件）`);
+  });
+  const ok = Object.values(checkState).filter(s=>s.status==='ok').length;
+  const err = Object.values(checkState).filter(s=>s.status==='err').length;
+  lines.push('', `正常：${ok} 項 ／ 異常：${err} 項`);
+  navigator.clipboard.writeText(lines.join('\n'))
+    .then(() => alert('✅ 已複製！可直接貼到 LINE 群組'))
+    .catch(() => alert(lines.join('\n')));
+}
+
+renderCheckSelect();
+renderNewItems();
+</script>
+</body>
+</html>
