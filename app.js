@@ -28,7 +28,6 @@ async function callScript(action, params = {}) {
   return response.json();
 }
 
-// 解析金額（去除 $ 符號）
 function parsePrice(str) {
   return Number(String(str).replace(/\$|,/g, '').trim()) || 0;
 }
@@ -51,7 +50,7 @@ async function handleEvent(event) {
   if (event.type === 'join') {
     await client.replyMessage({
       replyToken: event.replyToken,
-      messages: [{ type: 'text', text: '大家好！我是貝拉 👋\n\n📋 訂單管理：\n新增訂單：顧客/商品/$金額\n付款確認：訂單編號/備註\n廠商下單：訂單編號/$成本\n已出貨：訂單編號\n已完成：訂單編號\n\n📝 待訂管理：\n新增待訂：顧客/商品/$金額/備註/連結\n（或先傳圖片再輸入：顧客/商品/$金額/備註）\n待訂清單\n待訂轉訂單：待訂編號\n刪除待訂：待訂編號\n\n📦 商品管理：\n新增商品：名稱/$售價/$成本/庫存\n賣出：名稱或編號/數量\n\n🔍 快速查詢：\n訂單總覽 / 待付款 / 待採購 / 待出貨\n查顧客：名稱\n查商品：名稱\n查訂單：編號\n\n📦 核對收貨\n💬 @貝拉 任何問題' }],
+      messages: [{ type: 'text', text: '大家好！我是貝拉 👋\n\n📋 訂單管理：\n新增訂單：顧客/商品/$金額\n新增訂單：顧客/商品/$金額/貨到付款\n付款確認：訂單編號/備註\n分批下單：訂單編號/商品/$成本\n填入成本：採購單號/$成本\n部分出貨：訂單編號/採購單號\n已出貨：訂單編號\n已完成：訂單編號\n\n📝 待訂管理：\n新增待訂：顧客/商品/$金額/備註/連結\n待訂清單\n待訂轉訂單：待訂編號\n刪除待訂：待訂編號\n\n📦 商品管理：\n新增商品：名稱/$售價/$成本/庫存\n賣出：名稱或編號/數量\n\n🔍 快速查詢：\n訂單總覽 / 待付款 / 待採購 / 待出貨\n查顧客：名稱\n查商品：名稱\n查訂單：編號\n\n📦 核對收貨\n💬 @貝拉 任何問題' }],
     });
     return;
   }
@@ -62,10 +61,7 @@ async function handleEvent(event) {
   // 處理圖片訊息
   if (event.type === 'message' && event.message.type === 'image') {
     const imageId = event.message.id;
-    pendingWaiting[sourceId] = {
-      imageId: imageId,
-      timestamp: Date.now(),
-    };
+    pendingWaiting[sourceId] = { imageId, timestamp: Date.now() };
     await client.replyMessage({
       replyToken: event.replyToken,
       messages: [{ type: 'text', text: '📷 收到圖片！\n請輸入待訂資訊：\n\n格式：顧客/商品/$金額/備註(選填)\n範例：王小美/韓國外套/$2180/等補貨' }],
@@ -147,7 +143,6 @@ async function handleEvent(event) {
     }
 
     // 新增商品
-    // 格式：新增商品：名稱/$售價/$成本/庫存
     const addProductMatch = userMessage.match(/^新增商品\s*[：:]\s*(.+)/);
     if (addProductMatch) {
       const parts = addProductMatch[1].split('/').map(s => s.trim());
@@ -173,14 +168,11 @@ async function handleEvent(event) {
     }
 
     // 賣出
-    // 格式：賣出：名稱或編號/數量
     const saleMatch = userMessage.match(/^賣出\s*[：:]\s*(.+)/);
     if (saleMatch) {
       const parts = saleMatch[1].split('/').map(s => s.trim());
       const result = await callScript('addSale', {
-        name: parts[0],
-        id: parts[0],
-        qty: Number(parts[1]) || 1,
+        name: parts[0], id: parts[0], qty: Number(parts[1]) || 1,
       });
       if (result.error) {
         await client.replyMessage({
@@ -196,22 +188,23 @@ async function handleEvent(event) {
       return;
     }
 
-    // 新增訂單
-    // 格式：新增訂單：顧客/商品/$金額
+    // 新增訂單（支援貨到付款）
     const addOrderMatch = userMessage.match(/^新增訂單\s*[：:]\s*(.+)/);
     if (addOrderMatch) {
       const parts = addOrderMatch[1].split('/').map(s => s.trim());
       if (parts.length < 3) {
         await client.replyMessage({
           replyToken: event.replyToken,
-          messages: [{ type: 'text', text: '❌ 格式錯誤！\n正確格式：新增訂單：顧客/商品/$金額\n範例：新增訂單：王小美/韓國波點外套 M/$2180' }],
+          messages: [{ type: 'text', text: '❌ 格式錯誤！\n正確格式：新增訂單：顧客/商品/$金額\n貨到付款：新增訂單：顧客/商品/$金額/貨到付款' }],
         });
         return;
       }
+      const isCOD = parts[3] === '貨到付款';
       const result = await callScript('addOrder', {
         customer: parts[0],
         product: parts[1],
         price: parsePrice(parts[2]),
+        paymentType: isCOD ? '貨到付款' : '',
       });
       if (result.needMerge) {
         pendingMerge[sourceId] = {
@@ -225,22 +218,20 @@ async function handleEvent(event) {
         });
         return;
       }
+      const statusText = isCOD ? '💵 貨到付款' : '⏳ 待付款';
       await client.replyMessage({
         replyToken: event.replyToken,
-        messages: [{ type: 'text', text: `✅ 訂單已建立！\n━━━━━━━━━━━━━━\n📋 訂單編號：${result.orderId}\n👤 顧客：${parts[0]}\n📦 商品：${parts[1]}\n💰 金額：${parsePrice(parts[2])} 元\n⏳ 狀態：待付款\n━━━━━━━━━━━━━━\n請將賣貨便連結傳給顧客 😊` }],
+        messages: [{ type: 'text', text: `✅ 訂單已建立！\n━━━━━━━━━━━━━━\n📋 訂單編號：${result.orderId}\n👤 顧客：${parts[0]}\n📦 商品：${parts[1]}\n💰 金額：${parsePrice(parts[2])} 元\n${statusText}\n━━━━━━━━━━━━━━\n請將賣貨便連結傳給顧客 😊` }],
       });
       return;
     }
 
     // 付款確認
-    // 格式：付款確認：訂單編號/備註
     const payMatch = userMessage.match(/^付款確認\s*[：:]\s*(.+)/);
     if (payMatch) {
       const parts = payMatch[1].split('/').map(s => s.trim());
       const result = await callScript('updateOrder', {
-        orderId: parts[0],
-        status: '已付款',
-        note: parts[1] || '',
+        orderId: parts[0], status: '已付款', note: parts[1] || '',
       });
       if (result.error) {
         await client.replyMessage({
@@ -250,21 +241,28 @@ async function handleEvent(event) {
       } else {
         await client.replyMessage({
           replyToken: event.replyToken,
-          messages: [{ type: 'text', text: `✅ 付款已確認！\n━━━━━━━━━━━━━━\n📋 訂單：${parts[0]}\n💳 狀態：已付款\n📝 備註：${parts[1] || '無'}\n🛒 採購單：${result.purchaseId} 已建立\n━━━━━━━━━━━━━━\n記得去跟韓國廠商下單！` }],
+          messages: [{ type: 'text', text: `✅ 付款已確認！\n━━━━━━━━━━━━━━\n📋 訂單：${parts[0]}\n💳 狀態：已付款\n📝 備註：${parts[1] || '無'}\n━━━━━━━━━━━━━━\n記得去跟韓國廠商下單！\n使用：分批下單：${parts[0]}/商品/$成本` }],
         });
       }
       return;
     }
 
-    // 廠商下單
-    // 格式：廠商下單：訂單編號/$成本
-    const purchaseMatch = userMessage.match(/^廠商下單\s*[：:]\s*(.+)/);
-    if (purchaseMatch) {
-      const parts = purchaseMatch[1].split('/').map(s => s.trim());
-      const result = await callScript('updateOrder', {
+    // 分批下單
+    // 格式：分批下單：訂單編號/商品/$成本
+    const batchPurchaseMatch = userMessage.match(/^分批下單\s*[：:]\s*(.+)/);
+    if (batchPurchaseMatch) {
+      const parts = batchPurchaseMatch[1].split('/').map(s => s.trim());
+      if (parts.length < 2) {
+        await client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: '❌ 格式錯誤！\n正確格式：分批下單：訂單編號/商品/$成本\n範例：分批下單：ORD001/韓國外套/$1500' }],
+        });
+        return;
+      }
+      const result = await callScript('addPurchase', {
         orderId: parts[0],
-        status: '已向廠商下單',
-        cost: parsePrice(parts[1] || '0'),
+        product: parts[1],
+        cost: parsePrice(parts[2] || '0'),
       });
       if (result.error) {
         await client.replyMessage({
@@ -274,7 +272,68 @@ async function handleEvent(event) {
       } else {
         await client.replyMessage({
           replyToken: event.replyToken,
-          messages: [{ type: 'text', text: `✅ 廠商下單完成！\n━━━━━━━━━━━━━━\n📋 訂單：${parts[0]}\n💵 成本：${parsePrice(parts[1] || '0')} 元\n🛒 狀態：已向廠商下單\n⏳ 等待廠商出貨中...` }],
+          messages: [{ type: 'text', text: `✅ 廠商下單完成！\n━━━━━━━━━━━━━━\n🛒 採購單號：${result.purchaseId}\n📋 關聯訂單：${result.orderId}\n📦 商品：${result.product}\n━━━━━━━━━━━━━━\n出貨時傳：部分出貨：${result.orderId}/${result.purchaseId}` }],
+        });
+      }
+      return;
+    }
+
+    // 填入成本
+    // 格式：填入成本：採購單號/$成本
+    const updateCostMatch = userMessage.match(/^填入成本\s*[：:]\s*(.+)/);
+    if (updateCostMatch) {
+      const parts = updateCostMatch[1].split('/').map(s => s.trim());
+      if (parts.length < 2) {
+        await client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: '❌ 格式錯誤！\n正確格式：填入成本：採購單號/$成本\n範例：填入成本：PO001/$1500' }],
+        });
+        return;
+      }
+      const result = await callScript('updateCost', {
+        purchaseId: parts[0],
+        cost: parsePrice(parts[1]),
+      });
+      if (result.error) {
+        await client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: `❌ ${result.error}` }],
+        });
+      } else {
+        await client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: `✅ 成本已更新！\n🛒 採購單：${parts[0]}\n💵 成本：${parsePrice(parts[1])} 元` }],
+        });
+      }
+      return;
+    }
+
+    // 部分出貨
+    // 格式：部分出貨：訂單編號/採購單號
+    const partialShipMatch = userMessage.match(/^部分出貨\s*[：:]\s*(.+)/);
+    if (partialShipMatch) {
+      const parts = partialShipMatch[1].split('/').map(s => s.trim());
+      if (parts.length < 2) {
+        await client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: '❌ 格式錯誤！\n正確格式：部分出貨：訂單編號/採購單號\n範例：部分出貨：ORD001/PO001' }],
+        });
+        return;
+      }
+      const result = await callScript('partialShip', {
+        orderId: parts[0],
+        purchaseId: parts[1],
+      });
+      if (result.error) {
+        await client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: `❌ ${result.error}` }],
+        });
+      } else {
+        const allShippedMsg = result.allShipped ? '\n🎉 所有商品已全部出貨！\n可以傳「已完成：' + parts[0] + '」完成訂單' : '\n⏳ 還有其他商品待出貨';
+        await client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: `✅ 部分出貨完成！\n━━━━━━━━━━━━━━\n📋 訂單：${parts[0]}\n🛒 採購單：${parts[1]}\n📦 狀態：已出貨${allShippedMsg}` }],
         });
       }
       return;
@@ -284,8 +343,7 @@ async function handleEvent(event) {
     const shipMatch = userMessage.match(/^已出貨\s*[：:]\s*(\S+)/);
     if (shipMatch) {
       const result = await callScript('updateOrder', {
-        orderId: shipMatch[1],
-        status: '已出貨',
+        orderId: shipMatch[1], status: '已出貨',
       });
       if (result.error) {
         await client.replyMessage({
@@ -305,8 +363,7 @@ async function handleEvent(event) {
     const doneMatch = userMessage.match(/^已完成\s*[：:]\s*(\S+)/);
     if (doneMatch) {
       const result = await callScript('updateOrder', {
-        orderId: doneMatch[1],
-        status: '已完成',
+        orderId: doneMatch[1], status: '已完成',
       });
       if (result.error) {
         await client.replyMessage({
@@ -322,26 +379,22 @@ async function handleEvent(event) {
       return;
     }
 
-    // 新增待訂（含連結）
-    // 格式：新增待訂：顧客/商品/$金額/備註/連結
+    // 新增待訂
     const addWaitMatch = userMessage.match(/^新增待訂\s*[：:]\s*(.+)/);
     if (addWaitMatch) {
       const parts = addWaitMatch[1].split('/').map(s => s.trim());
       if (parts.length < 3) {
         await client.replyMessage({
           replyToken: event.replyToken,
-          messages: [{ type: 'text', text: '❌ 格式錯誤！\n正確格式：新增待訂：顧客/商品/$金額/備註/連結\n範例：新增待訂：王小美/韓國外套/$2180/等補貨/https://...' }],
+          messages: [{ type: 'text', text: '❌ 格式錯誤！\n正確格式：新增待訂：顧客/商品/$金額/備註/連結\n範例：新增待訂：王小美/韓國外套/$2180/等補貨' }],
         });
         return;
       }
       const link = parts[4] && parts[4].startsWith('http') ? parts[4] : '';
       const result = await callScript('addWaiting', {
-        customer: parts[0],
-        product: parts[1],
+        customer: parts[0], product: parts[1],
         price: parsePrice(parts[2]),
-        note: parts[3] || '',
-        link: link,
-        imageUrl: '',
+        note: parts[3] || '', link, imageUrl: '',
       });
       await client.replyMessage({
         replyToken: event.replyToken,
@@ -436,7 +489,7 @@ async function handleEvent(event) {
         });
         return;
       }
-      const statusEmoji = { '待付款': '⏳', '已付款': '💳', '已向廠商下單': '🛒', '已出貨': '📦', '已完成': '✅' };
+      const statusEmoji = { '待付款': '⏳', '貨到付款': '💵', '已付款': '💳', '已向廠商下單': '🛒', '已出貨': '📦', '已完成': '✅' };
       const text = `👤 ${customerMatch[1]} 的訂單（${result.orders.length} 筆）\n━━━━━━━━━━━━━━\n` +
         result.orders.map(o =>
           `📋 ${o.id}\n📦 ${o.product}\n💰 ${o.price} 元\n${statusEmoji[o.status] || '📌'} ${o.status}\n📅 ${o.date}`
@@ -459,7 +512,7 @@ async function handleEvent(event) {
         });
         return;
       }
-      const statusEmoji = { '待付款': '⏳', '已付款': '💳', '已向廠商下單': '🛒', '已出貨': '📦', '已完成': '✅' };
+      const statusEmoji = { '待付款': '⏳', '貨到付款': '💵', '已付款': '💳', '已向廠商下單': '🛒', '已出貨': '📦', '已完成': '✅' };
       let text = `📦 「${productMatch[1]}」查詢結果\n━━━━━━━━━━━━━━\n`;
       text += `📊 累計數據\n🛍️ 已售數量：${result.totalQty} 件\n💰 累計營收：${result.totalRevenue} 元\n📈 累計獲利：${result.totalProfit} 元\n`;
       text += `━━━━━━━━━━━━━━\n📋 相關訂單（${result.orders.length} 筆）\n`;
@@ -473,7 +526,7 @@ async function handleEvent(event) {
       return;
     }
 
-    // 查單筆訂單
+    // 查單筆訂單（含採購單明細）
     const orderIdMatch = userMessage.match(/^查訂單\s*[：:]\s*(\S+)/);
     if (orderIdMatch) {
       const result = await callScript('searchByOrderId', { orderId: orderIdMatch[1] });
@@ -485,8 +538,14 @@ async function handleEvent(event) {
         return;
       }
       const o = result.order;
-      const statusEmoji = { '待付款': '⏳', '已付款': '💳', '已向廠商下單': '🛒', '已出貨': '📦', '已完成': '✅' };
-      const text = `📋 訂單詳細資料\n━━━━━━━━━━━━━━\n🆔 ${o.id}\n📅 ${o.date}\n👤 ${o.customer}\n📦 ${o.product}\n💰 ${o.price} 元\n🚚 運費：${o.shipping} 元\n${statusEmoji[o.status] || '📌'} ${o.status}\n📝 ${o.note || '無備註'}\n━━━━━━━━━━━━━━\n🛒 採購單：${o.purchaseId}\n💵 成本：${o.cost} 元\n📦 採購狀態：${o.purchaseStatus}`;
+      const statusEmoji = { '待付款': '⏳', '貨到付款': '💵', '已付款': '💳', '已向廠商下單': '🛒', '已出貨': '📦', '已完成': '✅' };
+      let text = `📋 訂單詳細資料\n━━━━━━━━━━━━━━\n🆔 ${o.id}\n📅 ${o.date}\n👤 ${o.customer}\n📦 ${o.product}\n💰 ${o.price} 元\n🚚 運費：${o.shipping} 元\n${statusEmoji[o.status] || '📌'} ${o.status}\n📝 ${o.note || '無備註'}`;
+      if (o.purchases && o.purchases.length > 0) {
+        text += `\n━━━━━━━━━━━━━━\n🛒 採購明細（${o.purchases.length} 筆）\n`;
+        text += o.purchases.map(p =>
+          `${p.id} | ${p.product}\n💵 ${p.cost || '未填'} 元 | ${p.status}`
+        ).join('\n');
+      }
       await client.replyMessage({
         replyToken: event.replyToken,
         messages: [{ type: 'text', text }],
@@ -514,6 +573,7 @@ async function handleEvent(event) {
       }
       const groups = {
         '待付款': active.filter(o => o.status === '待付款'),
+        '貨到付款': active.filter(o => o.status === '貨到付款'),
         '待採購': active.filter(o => o.status === '已付款'),
         '待出貨': active.filter(o => o.status === '已向廠商下單'),
         '已出貨': active.filter(o => o.status === '已出貨'),
@@ -522,6 +582,11 @@ async function handleEvent(event) {
       if (groups['待付款'].length > 0) {
         text += `⏳ 待付款（${groups['待付款'].length} 筆）\n`;
         text += groups['待付款'].map(o => `${o.id} ${o.customer}｜${o.product}｜${o.price}元`).join('\n');
+        text += '\n━━━━━━━━━━━━━━\n';
+      }
+      if (groups['貨到付款'].length > 0) {
+        text += `💵 貨到付款（${groups['貨到付款'].length} 筆）\n`;
+        text += groups['貨到付款'].map(o => `${o.id} ${o.customer}｜${o.product}｜${o.price}元`).join('\n');
         text += '\n━━━━━━━━━━━━━━\n';
       }
       if (groups['待採購'].length > 0) {
@@ -546,7 +611,7 @@ async function handleEvent(event) {
     }
 
     // 快速查詢各狀態
-    const statusMap = { '待付款': '待付款', '待採購': '已付款', '待出貨': '已向廠商下單' };
+    const statusMap = { '待付款': '待付款', '待採購': '已付款', '待出貨': '已向廠商下單', '貨到付款': '貨到付款' };
     if (statusMap[userMessage]) {
       const result = await callScript('getOrders', { status: statusMap[userMessage] });
       if (!result.orders || result.orders.length === 0) {
