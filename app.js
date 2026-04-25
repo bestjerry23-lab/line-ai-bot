@@ -466,6 +466,27 @@ async function handleEvent(event) {
       }
       return;
     }
+    // 指令總覽
+if (userMessage === '指令總覽' || userMessage === '查詢功能' || userMessage === '功能列表') {
+  await client.replyMessage({
+    replyToken: event.replyToken,
+    messages: [{
+      type: 'template',
+      altText: '貝拉指令總覽',
+      template: {
+        type: 'buttons',
+        title: '🤖 貝拉指令總覽',
+        text: '點下方按鈕開啟完整指令選單',
+        actions: [{
+          type: 'uri',
+          label: '開啟指令總覽',
+          uri: COMMANDS_LIFF_URL,
+        }],
+      },
+    }],
+  });
+  return;
+}
 
     // 核對收貨
     if (userMessage === '核對收貨' || userMessage === '開始核對' || userMessage === '叫出訂購單') {
