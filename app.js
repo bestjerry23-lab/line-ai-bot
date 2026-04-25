@@ -370,12 +370,18 @@ async function handleEvent(event) {
           replyToken: event.replyToken,
           messages: [{ type: 'text', text: `❌ ${result.error}` }],
         });
-      } else {
-        await client.replyMessage({
-          replyToken: event.replyToken,
-          messages: [{ type: 'text', text: `🎉 訂單完成！\n━━━━━━━━━━━━━━\n📋 訂單：${doneMatch[1]}\n✅ 狀態：已完成\n📈 獲利：${result.profit} 元\n━━━━━━━━━━━━━━\n已自動寫入銷售紀錄！` }],
-        });
-      }
+} else {
+  let stockMsg = '';
+  if (result.stockUpdated && result.stockUpdated.length > 0) {
+    stockMsg = '\n📦 庫存更新：\n' + result.stockUpdated.map(s =>
+      `• ${s.name}：剩餘 ${s.newStock} 件${s.newStock === 0 ? '（已售完）' : ''}`
+    ).join('\n');
+  }
+  await client.replyMessage({
+    replyToken: event.replyToken,
+    messages: [{ type: 'text', text: `🎉 訂單完成！\n━━━━━━━━━━━━━━\n📋 訂單：${doneMatch[1]}\n✅ 狀態：已完成\n📈 獲利：${result.profit} 元${stockMsg}\n━━━━━━━━━━━━━━\n已自動寫入銷售紀錄！` }],
+  });
+}
       return;
     }
 
