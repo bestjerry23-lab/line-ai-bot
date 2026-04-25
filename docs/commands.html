@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>貝拉指令總覽</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; }
+.header { background: #06C755; color: white; padding: 14px 16px; font-size: 16px; font-weight: 600; text-align: center; position: sticky; top: 0; z-index: 10; }
+.wrap { padding: 12px; max-width: 480px; margin: 0 auto; }
+.menu-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px; }
+.menu-btn { padding: 10px 6px; border: 1px solid #e0e0e0; border-radius: 10px; background: white; cursor: pointer; font-size: 12px; font-weight: 500; color: #333; text-align: center; }
+.menu-btn.active { border-color: #06C755; background: #e8f8ef; color: #06C755; }
+.section-card { background: white; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden; }
+.cmd-list { display: none; }
+.cmd-list.show { display: block; }
+.cmd-item { padding: 12px 14px; border-bottom: 1px solid #f0f0f0; }
+.cmd-item:last-child { border-bottom: none; }
+.cmd-label { font-size: 11px; color: #888; margin-bottom: 4px; }
+.cmd-format { font-size: 13px; font-weight: 500; color: #222; background: #f5f5f5; padding: 6px 10px; border-radius: 8px; margin-bottom: 4px; word-break: break-all; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.cmd-text { flex: 1; }
+.copy-btn { font-size: 11px; padding: 3px 10px; border: 1px solid #ddd; border-radius: 20px; background: white; cursor: pointer; color: #666; white-space: nowrap; flex-shrink: 0; }
+.copy-btn.copied { background: #06C755; color: white; border-color: #06C755; }
+.cmd-example { font-size: 12px; color: #888; }
+.note { font-size: 12px; color: #888; padding: 8px 14px; background: #f9f9f9; border-top: 1px solid #f0f0f0; }
+</style>
+</head>
+<body>
+<div class="header">🤖 貝拉指令總覽</div>
+<div class="wrap">
+  <div class="menu-grid">
+    <button class="menu-btn active" onclick="show('order',this)">📋 訂單</button>
+    <button class="menu-btn" onclick="show('waiting',this)">📝 待訂</button>
+    <button class="menu-btn" onclick="show('product',this)">📦 商品</button>
+    <button class="menu-btn" onclick="show('search',this)">🔍 查詢</button>
+    <button class="menu-btn" onclick="show('receive',this)">📬 核對</button>
+    <button class="menu-btn" onclick="show('ai',this)">💬 問貝拉</button>
+  </div>
+
+  <div class="section-card">
+
+    <div id="order" class="cmd-list show">
+      <div class="cmd-item">
+        <div class="cmd-label">新增訂單（一般付款）</div>
+        <div class="cmd-format"><span class="cmd-text">新增訂單：顧客/商品/$金額</span><button class="copy-btn" onclick="copy(this,'新增訂單：顧客/商品/$金額')">複製</button></div>
+        <div class="cmd-example">例：新增訂單：王小美/韓國外套/$2180</div>
+      </div>
+      <div class="cmd-item">
+        <div class="cmd-label">新增訂單（貨到付款）</div>
+        <div class="cmd-format"><span class="cmd-text">新增訂單：顧客/商品/$金額/貨到付款</span><button class="copy-btn" onclick="copy(this,'新增訂單：顧客/商品/$金額/貨到付款')">複製</button></div>
+        <div class="cmd-example">例：新增訂單：王小美/韓國外套/$2180/貨到付款</div>
+      </div>
+      <div class="cmd-item">
+        <div class="cmd-label">合併同買家訂單</div>
+        <div class="cmd-format"><span class="cmd-text">合併：訂單編號</span><button class="copy-btn" onclick="copy(this,'合併：ORD001')">複製</button></div>
+        <div class="cmd-example">或回覆「不合併」另開新單</div>
+      </div>
+      <div class="cmd-item">
+        <div class="cmd-label">確認付款</div>
+        <div class="cmd-format"><span class="cmd-text">付款確認：訂單編號/備註</span><button class="copy-btn" onclick="copy(this,'付款確認：ORD001/末五碼12345')">複製</button></div>
+        <div class="cmd-example">例：付款確認：ORD001/末五碼12345</div>
+      </div>
+      <div class="cmd-item">
+        <div class="cmd-label">向廠商分批下單</div>
+        <div class="cmd-format"><span class="cmd-text">分批下單：訂單編號/商品/$成本</span><button class="copy-btn" onclick="copy(this,'分批下單：ORD001/韓國外套/$1500')">複製</button></div>
+        <div class="cmd-example">例：分批下單：ORD001/韓國外套/$1500</div>
+      </div>
+      <div class="cmd-item">
+        <div class="cmd-label">補填採購成本</div>
+        <div class="cmd-format"><span class="cmd-text">填入成本：採購單號/$成本</span><button class="copy-btn" onclick="copy(this,'填入成本：PO001/$1500')">複製</button></div>
+        <div class="cmd-example">例：填入成本：PO001/$1500</div>
+      </div>
+      <div class="cmd-item">
+        <div class="cmd-label">部分商品出貨</div>
+        <div class="cmd-format"><span class="cmd-text">部分出貨：訂單編號/採購單號</span><button class="copy-btn" onclick="copy(this,'部分出貨：ORD001/PO001')">複製</button></div>
+        <div class="cmd-example">例：部分出貨：ORD001/PO001</div>
+      </div>
+      <div class="cmd-item">
+        <div class="cmd-label">全部出貨</div>
+        <div class="cmd-format"><span class="cmd-text">已出貨：訂單編號</span><button class="copy-btn" onclick="copy(this,'已出貨：ORD001')">複製</button></div>
+        <div class="cmd-example">例：已出貨：ORD001</div>
+      </div>
+      <div class="cmd-item">
+        <div class="cmd-label">完成訂單（自動扣庫存＋寫銷售紀錄）</div>
+        <div class="cmd-format"><span class="cmd-text">已完成：訂單編號</span><button class="copy-btn" onclick="copy(this,'已完成：ORD001')">複製</button></div>
+        <div class="cmd-example">例：已完成：ORD001</div>
+      </div>
+      <div class="note">💡 金額前加 $ ／ 欄位用 / 分隔</div>
+    </div>
+
+    <div id="waiting" class="cmd-list">
+      <div class="cmd-item">
+        <div class="cmd-label">新增待訂（含連結）</div>
+        <div class="cmd-format"><span class="cmd-text">新增待訂：顧客/商品/$金額/備註/連結</span><button class="copy-btn" onclick="copy(this,'新增待訂：王小美/韓國外套/$2180/等補貨')">複製</button></div>
+        <div class="cmd-example">例：新增待訂：王小美/韓國外套/$2180/等補貨</div>
+      </div>
+      <div class="cmd-item">
+        <div class="cmd-label">新增待訂（含圖片）</div>
+        <div class="cmd-format"><span class="cmd-text">先傳圖片 → 再輸入資訊</span></div>
+        <div class="cmd-example">傳圖後輸入：王小美/韓國外套/$2180/等補貨</div>
+      </div>
+      <div class="cmd-item">
+        <div class="cmd-label">查看所有待訂</div>
+        <div class="cmd-format"><span class="cmd-text">待訂清單</span><button class="copy-btn" onclick="copy(this,'待訂清單')">複製</button></div>
+      </div>
+      <div class="cmd-item">
+        <div class="cmd-label">轉為正式訂單</div>
+        <div class="cmd-format"><span class="cmd-text">待訂轉訂單：待訂編號</span><button class="copy-btn" onclick="copy(this,'待訂轉訂單：W001')">複製</button></div>
+        <div class="cmd-example">例：待訂轉訂單：W001</div>
+      </div>
+      <div class="cmd-item">
+        <div class="cmd-label">刪除待訂記錄</div>
+        <div class="cmd-format"><span class="cmd-text">刪除待訂：待訂編號</span><button class="copy-btn" onclick="copy(this,'刪除待訂：W001')">複製</button></div>
+        <div class="cmd-example">例：刪除待訂：W001</div>
+      </div>
+      <div class="note">💡 待訂編號格式：W001</div>
+    </div>
+
+    <div id="product" class="cmd-list">
+      <div class="cmd-item">
+        <div class="cmd-label">新增商品到清單</div>
+        <div class="cmd-format"><span class="cmd-text">新增商品：名稱/$售價/$成本/庫存</span><button class="copy-btn" onclick="copy(this,'新增商品：韓國外套/$2180/$1500/10')">複製</button></div>
+        <div class="cmd-example">例：新增商品：韓國外套/$2180/$1500/10</div>
+      </div>
+      <div class="cmd-item">
+        <div class="cmd-label">記錄現貨賣出</div>
+        <div class="cmd-format"><span class="cmd-text">賣出：名稱或編號/數量</span><button class="copy-btn" onclick="copy(this,'賣出：P001/1')">複製</button></div>
+        <div class="cmd-example">例：賣出：P001/1 或 賣出：韓國外套/1</div>
+      </div>
+      <div class="note">💡 商品編號：P001 ／ 訂單完成時自動扣庫存</div>
+    </div>
+
+    <div id="search" class="cmd-list">
+      <div class="cmd-item">
+        <div class="cmd-label">所有進行中訂單</div>
+        <div class="cmd-format"><span class="cmd-text">訂單總覽</span><button class="copy-btn" onclick="copy(this,'訂單總覽')">複製</button></div>
+      </div>
+      <div class="cmd-item">
+        <div class="cmd-label">快速篩選狀態</div>
+        <div class="cmd-format"><span class="cmd-text">待付款 ／ 貨到付款 ／ 待採購 ／ 待出貨</span><button class="copy-btn" onclick="copy(this,'待付款')">複製</button></div>
+      </div>
+      <div class="cmd-item">
+        <div class="cmd-label">查顧客所有訂單</div>
+        <div class="cmd-format"><span class="cmd-text">查顧客：名稱</span><button class="copy-btn" onclick="copy(this,'查顧客：王小美')">複製</button></div>
+        <div class="cmd-example">例：查顧客：王小美</div>
+      </div>
+      <div class="cmd-item">
+        <div class="cmd-label">查商品銷售＋獲利</div>
+        <div class="cmd-format"><span class="cmd-text">查商品：名稱</span><button class="copy-btn" onclick="copy(this,'查商品：韓國外套')">複製</button></div>
+        <div class="cmd-example">例：查商品：韓國外套</div>
+      </div>
+      <div class="cmd-item">
+        <div class="cmd-label">查單筆訂單詳細</div>
+        <div class="cmd-format"><span class="cmd-text">查訂單：編號</span><button class="copy-btn" onclick="copy(this,'查訂單：ORD001')">複製</button></div>
+        <div class="cmd-example">例：查訂單：ORD001</div>
+      </div>
+      <div class="note">💡 訂單編號：ORD001 ／ 採購單號：PO001</div>
+    </div>
+
+    <div id="receive" class="cmd-list">
+      <div class="cmd-item">
+        <div class="cmd-label">開啟收貨核對介面</div>
+        <div class="cmd-format"><span class="cmd-text">核對收貨</span><button class="copy-btn" onclick="copy(this,'核對收貨')">複製</button></div>
+        <div class="cmd-example">貝拉會傳送 LIFF 連結開啟核對介面</div>
+      </div>
+      <div class="note">💡 核對完成後可複製結果貼到 LINE 群組存檔</div>
+    </div>
+
+    <div id="ai" class="cmd-list">
+      <div class="cmd-item">
+        <div class="cmd-label">群組內對話（需加 @貝拉）</div>
+        <div class="cmd-format"><span class="cmd-text">@貝拉 問題</span><button class="copy-btn" onclick="copy(this,'@貝拉 ')">複製</button></div>
+        <div class="cmd-example">例：@貝拉 有沒有韓國外套？</div>
+      </div>
+      <div class="cmd-item">
+        <div class="cmd-label">私訊直接輸入</div>
+        <div class="cmd-format"><span class="cmd-text">任何問題（不需加 @貝拉）</span></div>
+      </div>
+      <div class="cmd-item">
+        <div class="cmd-label">翻譯</div>
+        <div class="cmd-format"><span class="cmd-text">@貝拉 幫我翻譯這段韓文</span><button class="copy-btn" onclick="copy(this,'@貝拉 幫我翻譯這段韓文')">複製</button></div>
+      </div>
+      <div class="cmd-item">
+        <div class="cmd-label">寫文案</div>
+        <div class="cmd-format"><span class="cmd-text">@貝拉 幫我寫這件外套的介紹</span><button class="copy-btn" onclick="copy(this,'@貝拉 幫我寫這件外套的介紹')">複製</button></div>
+      </div>
+      <div class="cmd-item">
+        <div class="cmd-label">查詢營收</div>
+        <div class="cmd-format"><span class="cmd-text">@貝拉 本月營收多少？</span><button class="copy-btn" onclick="copy(this,'@貝拉 本月營收多少？')">複製</button></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function show(id, btn) {
+  document.querySelectorAll('.cmd-list').forEach(el => el.classList.remove('show'));
+  document.querySelectorAll('.menu-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById(id).classList.add('show');
+  btn.classList.add('active');
+}
+function copy(btn, text) {
+  navigator.clipboard.writeText(text).catch(() => {});
+  btn.textContent = '已複製 ✓';
+  btn.classList.add('copied');
+  setTimeout(() => {
+    btn.textContent = '複製';
+    btn.classList.remove('copied');
+  }, 1500);
+}
+</script>
+</body>
+</html>
