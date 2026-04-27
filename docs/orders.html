@@ -425,7 +425,7 @@ async function loadDashboard() {
       return;
     }
 
-    allOrders = result.orders;
+    allOrders = result.orders.reverse();
 
     // 篩選當月訂單
     const monthOrders = allOrders.filter(o => isInMonth(o.date, currentYear, currentMonth));
@@ -463,7 +463,7 @@ async function loadDashboard() {
     }, 100);
 
     // 最近訂單（當月）
-    const recent = [...monthOrders].sort((a,b) => (b.date||'').localeCompare(a.date||'')).slice(0,10);
+    const recent = [...monthOrders].reverse().slice(0,10);
     document.getElementById('recent-orders').innerHTML = recent.length
       ? recent.map(renderOrderCard).join('')
       : `<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">${currentMonth}月沒有訂單</div></div>`;
