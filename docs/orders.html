@@ -305,9 +305,10 @@ function getMonthDisplay() {
 // 判斷訂單是否屬於該月份
 function isInMonth(dateStr, year, month) {
   if (!dateStr) return false;
-  // 支援 2026/4/25 或 2026/04/25 格式
-  const parts = String(dateStr).split('/');
-  if (parts.length < 3) return false;
+  const str = String(dateStr).trim();
+  // 支援多種格式
+  const parts = str.split(/[\/\-\.]/);
+  if (parts.length < 2) return false;
   return parseInt(parts[0]) === year && parseInt(parts[1]) === month;
 }
 
