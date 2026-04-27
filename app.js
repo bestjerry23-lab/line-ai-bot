@@ -15,6 +15,7 @@ const client = new line.messagingApi.MessagingApiClient({
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw1thsiQXBS2oSIoJGsqfP9O5UGkIZ4q6hJSL2D_PHArxnAAJeABZOz_yOM_OF6dORp/exec';
 const LIFF_URL = 'https://liff.line.me/2009848785-XeUcZFkH';
 const COMMANDS_LIFF_URL = 'https://liff.line.me/2009848785-nazfHeFe';
+const ORDERS_LIFF_URL = 'https://liff.line.me/2009848785-RYVn3Fbp';
 
 const pendingMerge = {};
 const pendingWaiting = {};
