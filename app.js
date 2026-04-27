@@ -526,6 +526,23 @@ async function handleEvent(event) {
       }
       return;
     }
+    // 訂單管理系統
+if (userMessage === '訂單管理' || userMessage === '開單系統' || userMessage === '訂單系統') {
+  await client.replyMessage({
+    replyToken: event.replyToken,
+    messages: [{
+      type: 'template',
+      altText: '貝拉訂單管理系統',
+      template: {
+        type: 'buttons',
+        title: '📋 訂單管理系統',
+        text: '點下方按鈕開啟視覺化訂單管理',
+        actions: [{ type: 'uri', label: '開啟訂單系統', uri: ORDERS_LIFF_URL }],
+      },
+    }],
+  });
+  return;
+}
 
     // 指令總覽
     if (userMessage === '指令總覽' || userMessage === '查詢功能' || userMessage === '功能列表') {
