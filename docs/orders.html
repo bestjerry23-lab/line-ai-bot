@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>貝拉訂單系統</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --cream:#FDF8F3;--warm:#F5EDE0;--brown:#8B6343;--brown-light:#C9956A;
+  --brown-dark:#5C3D1E;--green:#4CAF7D;--green-bg:#E8F5EE;--red:#E05C5C;
+  --red-bg:#FDE8E8;--amber:#E8A030;--amber-bg:#FDF0DC;--blue:#5B8DEF;
+  --blue-bg:#EBF1FF;--text:#2C1810;--text-muted:#8B7355;--border:#E8D9C8;
+  --card:#FFFFFF;--shadow:0 2px 12px rgba(139,99,67,0.08);
+}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--cream);color:var(--text);min-height:100vh;padding-bottom:80px}
+.header{background:white;border-bottom:1px solid var(--border);padding:16px 20px;position:sticky;top:0;z-index:100;box-shadow:var(--shadow)}
+.header-title{font-size:18px;font-weight:700;color:var(--brown-dark)}
+.header-sub{font-size:11px;color:var(--text-muted);margin-top:2px}
+.content{padding:16px}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid var(--border);display:flex;z-index:100}
+.nav-item{flex:1;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;border:none;background:none;font-family:'Noto Sans TC',sans-serif}
+.nav-icon{font-size:20px}
+.nav-label{font-size:10px;color:var(--text-muted);font-weight:500}
+.nav-item.active .nav-label{color:var(--brown)}
+.page{display:none}
+.page.active{display:block}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+.stat-card{background:var(--card);border-radius:16px;padding:16px;box-shadow:var(--shadow);border:1px solid var(--border)}
+.stat-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:10px}
+.stat-label{font-size:12px;color:var(--text-muted);margin-bottom:4px}
+.stat-value{font-size:22px;font-weight:700;color:var(--brown-dark)}
+.analysis-card{background:var(--card);border-radius:16px;padding:16px;box-shadow:var(--shadow);border:1px solid var(--border);margin-bottom:16px}
+.analysis-title{font-size:14px;font-weight:600;color:var(--brown-dark);margin-bottom:14px}
+.analysis-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.analysis-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.analysis-bar-wrap{flex:1;height:8px;background:var(--warm);border-radius:4px;overflow:hidden}
+.analysis-bar{height:100%;border-radius:4px;transition:width 0.8s ease}
+.analysis-pct{font-size:12px;font-weight:600;color:var(--text-muted);min-width:36px;text-align:right}
+.analysis-name{font-size:12px;color:var(--text-muted);min-width:70px}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.section-title{font-size:15px;font-weight:700;color:var(--brown-dark)}
+.see-all{font-size:12px;color:var(--brown);background:none;border:none;cursor:pointer;font-family:inherit}
+.order-card{background:var(--card);border-radius:16px;padding:16px;box-shadow:var(--shadow);border:1px solid var(--border);margin-bottom:12px}
+.order-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.order-name{font-size:15px;font-weight:700;color:var(--brown-dark)}
+.order-platform{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:var(--green-bg);color:var(--green)}
+.order-amount{font-size:18px;font-weight:700;color:var(--brown);margin-bottom:4px}
+.order-mid{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.order-date{font-size:12px;color:var(--text-muted)}
+.status-badge{font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;display:inline-flex;align-items:center;gap:4px}
+.status-badge.pending{background:var(--amber-bg);color:var(--amber)}
+.status-badge.paid{background:var(--green-bg);color:var(--green)}
+.status-badge.cod{background:var(--blue-bg);color:var(--blue)}
+.status-badge.ordered{background:#F0E8FF;color:#7C3AED}
+.status-badge.shipped{background:#E8F0FF;color:#3A6AED}
+.status-badge.done{background:var(--green-bg);color:var(--green)}
+.status-badge.cancelled{background:var(--red-bg);color:var(--red)}
+.order-divider{height:1px;background:var(--border);margin-bottom:12px}
+.order-actions{display:flex;gap:8px}
+.btn-view{flex:1;padding:8px;border-radius:10px;background:var(--amber-bg);border:none;font-size:13px;font-weight:500;color:var(--amber);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:4px}
+.btn-edit{flex:1;padding:8px;border-radius:10px;background:var(--blue-bg);border:none;font-size:13px;font-weight:500;color:var(--blue);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:4px}
+.btn-delete{width:36px;height:36px;border-radius:10px;background:var(--red-bg);border:none;color:var(--red);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.search-bar{background:white;border:1px solid var(--border);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.search-input{flex:1;border:none;outline:none;font-size:14px;font-family:inherit;color:var(--text);background:none}
+.search-input::placeholder{color:var(--text-muted)}
+.filter-row{display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.filter-row::-webkit-scrollbar{display:none}
+.filter-chip{padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);background:white;font-size:12px;font-weight:500;color:var(--text-muted);cursor:pointer;white-space:nowrap;font-family:inherit}
+.filter-chip.active{background:var(--brown);border-color:var(--brown);color:white}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;display:none;align-items:flex-end}
+.modal-overlay.show{display:flex}
+.modal{background:white;border-radius:24px 24px 0 0;width:100%;max-height:90vh;overflow-y:auto;padding:20px}
+.modal-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px}
+.modal-title{font-size:18px;font-weight:700;color:var(--brown-dark);margin-bottom:20px}
+.form-section{background:var(--warm);border-radius:14px;padding:14px;margin-bottom:14px}
+.form-section-title{font-size:13px;font-weight:700;color:var(--brown-dark);margin-bottom:12px}
+.form-group{margin-bottom:12px}
+.form-label{font-size:12px;color:var(--text-muted);font-weight:500;margin-bottom:6px;display:block}
+.form-input{width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;color:var(--text);background:white;outline:none}
+.form-input:focus{border-color:var(--brown)}
+.form-select{width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;color:var(--text);background:white;outline:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238B7355' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn-primary{width:100%;padding:14px;border-radius:12px;background:var(--brown);border:none;color:white;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:8px}
+.btn-secondary{width:100%;padding:12px;border-radius:12px;background:var(--warm);border:1px solid var(--border);color:var(--text-muted);font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;margin-top:8px}
+.detail-section{background:var(--warm);border-radius:14px;padding:14px;margin-bottom:12px}
+.detail-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)}
+.detail-row:last-child{border-bottom:none}
+.detail-key{font-size:13px;color:var(--text-muted)}
+.detail-val{font-size:13px;font-weight:500;color:var(--brown-dark)}
+.product-item{background:white;border-radius:10px;padding:10px;margin-bottom:8px}
+.product-name{font-size:13px;font-weight:600;color:var(--brown-dark);margin-bottom:4px}
+.product-meta{font-size:12px;color:var(--text-muted)}
+.empty{text-align:center;padding:40px 20px;color:var(--text-muted)}
+.empty-icon{font-size:48px;margin-bottom:12px}
+.empty-text{font-size:14px}
+.loading{text-align:center;padding:30px;color:var(--text-muted);font-size:14px}
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--brown-dark);color:white;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:500;opacity:0;transition:all 0.3s;z-index:300;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-title">貝拉訂單系統</div>
+  <div class="header-sub">優雅而完美的訂單管理平台</div>
+</div>
+
+<!-- 統計看板 -->
+<div id="page-dashboard" class="page active content">
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-icon" style="background:var(--amber-bg)">📋</div><div class="stat-label">總訂單數</div><div class="stat-value" id="stat-total">-</div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:var(--green-bg)">✅</div><div class="stat-label">已付款</div><div class="stat-value" id="stat-paid">-</div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:var(--red-bg)">⏳</div><div class="stat-label">未付款</div><div class="stat-value" id="stat-unpaid">-</div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:var(--warm)">💰</div><div class="stat-label">總營收</div><div class="stat-value" id="stat-revenue" style="font-size:14px">-</div></div>
+  </div>
+  <div class="analysis-card">
+    <div class="analysis-title">付款狀態分析</div>
+    <div class="analysis-row">
+      <div class="analysis-dot" style="background:var(--green)"></div>
+      <div class="analysis-name">已付款</div>
+      <div class="analysis-bar-wrap"><div class="analysis-bar" id="bar-paid" style="width:0%;background:var(--green)"></div></div>
+      <div class="analysis-pct" id="pct-paid">0%</div>
+    </div>
+    <div class="analysis-row">
+      <div class="analysis-dot" style="background:var(--amber)"></div>
+      <div class="analysis-name">未付款</div>
+      <div class="analysis-bar-wrap"><div class="analysis-bar" id="bar-unpaid" style="width:0%;background:var(--amber)"></div></div>
+      <div class="analysis-pct" id="pct-unpaid">0%</div>
+    </div>
+    <div class="analysis-row">
+      <div class="analysis-dot" style="background:var(--blue)"></div>
+      <div class="analysis-name">貨到付款</div>
+      <div class="analysis-bar-wrap"><div class="analysis-bar" id="bar-cod" style="width:0%;background:var(--blue)"></div></div>
+      <div class="analysis-pct" id="pct-cod">0%</div>
+    </div>
+  </div>
+  <div class="section-header">
+    <div class="section-title">最近訂單</div>
+    <button class="see-all" onclick="switchPage('orders')">查看全部 →</button>
+  </div>
+  <div id="recent-orders"><div class="loading">載入中...</div></div>
+</div>
+
+<!-- 訂單列表 -->
+<div id="page-orders" class="page content">
+  <div class="search-bar">
+    <span>🔍</span>
+    <input class="search-input" placeholder="搜尋顧客或商品..." id="search-input" oninput="filterOrders()">
+  </div>
+  <div class="filter-row">
+    <button class="filter-chip active" onclick="setFilter('all',this)">全部</button>
+    <button class="filter-chip" onclick="setFilter('待付款',this)">⏳ 待付款</button>
+    <button class="filter-chip" onclick="setFilter('貨到付款',this)">💵 貨到付款</button>
+    <button class="filter-chip" onclick="setFilter('已付款',this)">💳 已付款</button>
+    <button class="filter-chip" onclick="setFilter('已向廠商下單',this)">🛒 待出貨</button>
+    <button class="filter-chip" onclick="setFilter('已出貨',this)">📦 已出貨</button>
+    <button class="filter-chip" onclick="setFilter('已完成',this)">✅ 已完成</button>
+    <button class="filter-chip" onclick="setFilter('已取消',this)">🚫 已取消</button>
+  </div>
+  <div id="orders-list"><div class="loading">載入中...</div></div>
+</div>
+
+<!-- 新增訂單 -->
+<div id="page-new" class="page content">
+  <div class="form-section">
+    <div class="form-section-title">客戶資訊</div>
+    <div class="form-group"><label class="form-label">顧客名稱</label><input class="form-input" id="new-customer" placeholder="輸入顧客名稱"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">付款狀態</label>
+        <select class="form-select" id="new-payment">
+          <option value="待付款">⏳ 待付款</option>
+          <option value="貨到付款">💵 貨到付款</option>
+          <option value="已付款">💳 已付款</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">運費</label><input class="form-input" id="new-shipping" type="number" placeholder="0" value="0"></div>
+    </div>
+    <div class="form-group"><label class="form-label">備註</label><input class="form-input" id="new-note" placeholder="備註（選填）"></div>
+  </div>
+  <div class="form-section">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="form-section-title" style="margin-bottom:0">商品明細</div>
+      <button onclick="addProductRow()" style="font-size:12px;padding:4px 12px;border-radius:20px;background:var(--brown);color:white;border:none;cursor:pointer;font-family:inherit">+ 新增商品</button>
+    </div>
+    <div id="products-container">
+      <div class="product-row">
+        <div class="form-group"><label class="form-label">商品名稱</label><input class="form-input product-name" placeholder="商品名稱"></div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">售價</label><input class="form-input product-price" type="number" placeholder="0"></div>
+          <div class="form-group"><label class="form-label">成本</label><input class="form-input product-cost" type="number" placeholder="0"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <button class="btn-primary" onclick="submitNewOrder()">✓ 建立訂單</button>
+  <button class="btn-secondary" onclick="clearNewOrder()">清除重填</button>
+</div>
+
+<!-- 底部導航 -->
+<div class="bottom-nav">
+  <button class="nav-item active" onclick="switchPage('dashboard')" id="nav-dashboard"><span class="nav-icon">📊</span><span class="nav-label">統計</span></button>
+  <button class="nav-item" onclick="switchPage('orders')" id="nav-orders"><span class="nav-icon">📋</span><span class="nav-label">訂單</span></button>
+  <button class="nav-item" onclick="switchPage('new')" id="nav-new"><span class="nav-icon">➕</span><span class="nav-label">新增</span></button>
+</div>
+
+<!-- 訂單詳細 -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">訂單詳細</div>
+    <div id="detail-content"></div>
+    <button class="btn-secondary" onclick="closeModal('detail-modal')">關閉</button>
+  </div>
+</div>
+
+<!-- 編輯訂單 -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">編輯訂單</div>
+    <div class="form-section">
+      <div class="form-section-title">客戶資訊</div>
+      <div class="form-group"><label class="form-label">顧客名稱</label><input class="form-input" id="edit-customer"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">付款狀態</label>
+          <select class="form-select" id="edit-payment">
+            <option value="待付款">⏳ 待付款</option>
+            <option value="貨到付款">💵 貨到付款</option>
+            <option value="已付款">💳 已付款</option>
+            <option value="已向廠商下單">🛒 已向廠商下單</option>
+            <option value="已出貨">📦 已出貨</option>
+            <option value="已完成">✅ 已完成</option>
+            <option value="已取消">🚫 已取消</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">金額</label><input class="form-input" id="edit-amount" type="number"></div>
+      </div>
+      <div class="form-group"><label class="form-label">成本</label><input class="form-input" id="edit-cost" type="number" placeholder="0"></div>
+      <div class="form-group"><label class="form-label">備註</label><input class="form-input" id="edit-note"></div>
+    </div>
+    <input type="hidden" id="edit-order-id">
+    <button class="btn-primary" onclick="submitEdit()">✓ 儲存修改</button>
+    <button class="btn-secondary" onclick="closeModal('edit-modal')">取消</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// 使用 JSONP 方式呼叫 Apps Script，避免 CORS 問題
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw1thsiQXBS2oSIoJGsqfP9O5UGkIZ4q6hJSL2D_PHArxnAAJeABZOz_yOM_OF6dORp/exec';
+
+let allOrders = [];
+let currentFilter = 'all';
+let productRowCount = 1;
+let cbCount = 0;
+
+// JSONP 呼叫
+function callScript(action, params = {}) {
+  return new Promise((resolve, reject) => {
+    const cbName = '__cb' + (++cbCount);
+    const timeout = setTimeout(() => {
+      delete window[cbName];
+      reject(new Error('timeout'));
+    }, 15000);
+
+    window[cbName] = function(data) {
+      clearTimeout(timeout);
+      delete window[cbName];
+      const script = document.getElementById(cbName);
+      if (script) script.remove();
+      resolve(data);
+    };
+
+    const body = encodeURIComponent(JSON.stringify({action, ...params}));
+    const url = SCRIPT_URL + '?callback=' + cbName + '&body=' + body;
+    const script = document.createElement('script');
+    script.id = cbName;
+    script.src = url;
+    script.onerror = () => {
+      clearTimeout(timeout);
+      delete window[cbName];
+      script.remove();
+      reject(new Error('script error'));
+    };
+    document.head.appendChild(script);
+  });
+}
+
+function switchPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.getElementById('nav-' + page).classList.add('active');
+  if (page === 'dashboard') loadDashboard();
+  if (page === 'orders') loadOrders();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+function statusBadge(status) {
+  const map = {
+    '待付款':['pending','⏳'],'貨到付款':['cod','💵'],'已付款':['paid','💳'],
+    '已向廠商下單':['ordered','🛒'],'已出貨':['shipped','📦'],
+    '已完成':['done','✅'],'已取消':['cancelled','🚫']
+  };
+  const [cls, icon] = map[status] || ['pending','📌'];
+  return `<span class="status-badge ${cls}">${icon} ${status}</span>`;
+}
+
+async function loadDashboard() {
+  try {
+    const result = await callScript('getOrders', {});
+    if (!result || result.error || !result.orders) {
+      document.getElementById('recent-orders').innerHTML = '<div class="empty"><div class="empty-icon">❌</div><div class="empty-text">載入失敗，請重試</div></div>';
+      return;
+    }
+    const orders = result.orders;
+    allOrders = orders;
+    const active = orders.filter(o => o.status !== '已取消');
+    const paid = orders.filter(o => ['已付款','已向廠商下單','已出貨','已完成'].includes(o.status));
+    const unpaid = orders.filter(o => o.status === '待付款');
+    const cod = orders.filter(o => o.status === '貨到付款');
+    const revenue = orders.filter(o => o.status === '已完成').reduce((s,o) => s + Number(o.price||0), 0);
+
+    document.getElementById('stat-total').textContent = active.length;
+    document.getElementById('stat-paid').textContent = paid.length;
+    document.getElementById('stat-unpaid').textContent = unpaid.length;
+    document.getElementById('stat-revenue').textContent = 'NT$' + revenue.toLocaleString();
+
+    const total = active.length || 1;
+    setTimeout(() => {
+      const pp = Math.round(paid.length/total*100);
+      const up = Math.round(unpaid.length/total*100);
+      const cp = Math.round(cod.length/total*100);
+      document.getElementById('bar-paid').style.width = pp + '%';
+      document.getElementById('bar-unpaid').style.width = up + '%';
+      document.getElementById('bar-cod').style.width = cp + '%';
+      document.getElementById('pct-paid').textContent = pp + '%';
+      document.getElementById('pct-unpaid').textContent = up + '%';
+      document.getElementById('pct-cod').textContent = cp + '%';
+    }, 100);
+
+    const recent = [...orders].sort((a,b) => (b.date||'').localeCompare(a.date||'')).slice(0,5);
+    document.getElementById('recent-orders').innerHTML = recent.length
+      ? recent.map(renderOrderCard).join('')
+      : '<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">目前沒有訂單</div></div>';
+  } catch(e) {
+    document.getElementById('recent-orders').innerHTML = '<div class="empty"><div class="empty-icon">❌</div><div class="empty-text">載入失敗：' + e.message + '</div></div>';
+  }
+}
+
+async function loadOrders() {
+  document.getElementById('orders-list').innerHTML = '<div class="loading">載入中...</div>';
+  try {
+    const result = await callScript('getOrders', {});
+    if (!result || result.error || !result.orders) {
+      document.getElementById('orders-list').innerHTML = '<div class="empty"><div class="empty-icon">❌</div><div class="empty-text">載入失敗</div></div>';
+      return;
+    }
+    allOrders = result.orders;
+    filterOrders();
+  } catch(e) {
+    document.getElementById('orders-list').innerHTML = '<div class="empty"><div class="empty-icon">❌</div><div class="empty-text">載入失敗：' + e.message + '</div></div>';
+  }
+}
+
+function filterOrders() {
+  const search = document.getElementById('search-input').value.toLowerCase();
+  let filtered = allOrders;
+  if (currentFilter !== 'all') filtered = filtered.filter(o => o.status === currentFilter);
+  if (search) filtered = filtered.filter(o =>
+    (o.customer||'').toLowerCase().includes(search) || (o.product||'').toLowerCase().includes(search)
+  );
+  document.getElementById('orders-list').innerHTML = filtered.length
+    ? filtered.map(renderOrderCard).join('')
+    : '<div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">找不到相符的訂單</div></div>';
+}
+
+function setFilter(filter, btn) {
+  currentFilter = filter;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  filterOrders();
+}
+
+function renderOrderCard(o) {
+  return `<div class="order-card">
+    <div class="order-top"><div class="order-name">${o.customer||'未知'}</div><div class="order-platform">LINE</div></div>
+    <div class="order-mid">
+      <div><div class="order-amount">NT$${Number(o.price||0).toLocaleString()}</div><div class="order-date">${o.date||''}</div></div>
+      ${statusBadge(o.status)}
+    </div>
+    <div class="order-divider"></div>
+    <div class="order-actions">
+      <button class="btn-view" onclick="viewOrder('${o.id}')">👁 查看</button>
+      <button class="btn-edit" onclick="editOrder('${o.id}')">✏️ 編輯</button>
+      <button class="btn-delete" onclick="deleteOrder('${o.id}','${o.customer}')">🗑</button>
+    </div>
+  </div>`;
+}
+
+async function viewOrder(orderId) {
+  try {
+    const result = await callScript('searchByOrderId', {orderId});
+    if (!result || result.error) { showToast('❌ 載入失敗'); return; }
+    const o = result.order;
+    const profit = Number(o.price||0) - Number(o.cost||0);
+    document.getElementById('detail-content').innerHTML = `
+      <div class="detail-section">
+        <div class="detail-row"><span class="detail-key">訂單編號</span><span class="detail-val">${o.id}</span></div>
+        <div class="detail-row"><span class="detail-key">日期</span><span class="detail-val">${o.date}</span></div>
+        <div class="detail-row"><span class="detail-key">顧客</span><span class="detail-val">${o.customer}</span></div>
+        <div class="detail-row"><span class="detail-key">商品</span><span class="detail-val">${o.product}</span></div>
+        <div class="detail-row"><span class="detail-key">售價</span><span class="detail-val" style="color:var(--brown);font-weight:700">NT$${Number(o.price||0).toLocaleString()}</span></div>
+        <div class="detail-row"><span class="detail-key">成本</span><span class="detail-val">NT$${Number(o.cost||0).toLocaleString()}</span></div>
+        <div class="detail-row"><span class="detail-key">獲利</span><span class="detail-val" style="color:var(--green)">NT$${profit.toLocaleString()}</span></div>
+        <div class="detail-row"><span class="detail-key">狀態</span><span class="detail-val">${statusBadge(o.status)}</span></div>
+        <div class="detail-row"><span class="detail-key">備註</span><span class="detail-val">${o.note||'無'}</span></div>
+      </div>
+      ${o.purchases && o.purchases.length > 0 ? `
+      <div class="detail-section">
+        <div style="font-size:14px;font-weight:600;color:var(--brown-dark);margin-bottom:10px">採購明細</div>
+        ${o.purchases.map(p => `<div class="product-item"><div class="product-name">${p.product}</div><div class="product-meta">${p.id} ｜ 成本 NT$${Number(p.cost||0).toLocaleString()} ｜ ${p.status}</div></div>`).join('')}
+      </div>` : ''}`;
+    document.getElementById('detail-modal').classList.add('show');
+  } catch(e) { showToast('❌ 載入失敗'); }
+}
+
+function editOrder(orderId) {
+  const o = allOrders.find(x => x.id === orderId);
+  if (!o) { showToast('❌ 找不到訂單'); return; }
+  document.getElementById('edit-order-id').value = orderId;
+  document.getElementById('edit-customer').value = o.customer || '';
+  document.getElementById('edit-payment').value = o.status || '待付款';
+  document.getElementById('edit-amount').value = o.price || 0;
+  document.getElementById('edit-cost').value = o.cost || 0;
+  document.getElementById('edit-note').value = o.note || '';
+  document.getElementById('edit-modal').classList.add('show');
+}
+
+async function submitEdit() {
+  const orderId = document.getElementById('edit-order-id').value;
+  const customer = document.getElementById('edit-customer').value.trim();
+  const status = document.getElementById('edit-payment').value;
+  const amount = document.getElementById('edit-amount').value;
+  const cost = document.getElementById('edit-cost').value;
+  const note = document.getElementById('edit-note').value.trim();
+  if (!customer) { showToast('❌ 請輸入顧客名稱'); return; }
+  try {
+    await callScript('editOrder', {orderId, field:'顧客', value:customer});
+    await callScript('editOrder', {orderId, field:'金額', value:'$'+amount});
+    await callScript('editOrder', {orderId, field:'成本', value:'$'+cost});
+    await callScript('editOrder', {orderId, field:'備註', value:note});
+    await callScript('updateOrder', {orderId, status, note});
+    closeModal('edit-modal');
+    showToast('✅ 訂單已更新！');
+    loadOrders();
+  } catch(e) { showToast('❌ 更新失敗'); }
+}
+
+function deleteOrder(orderId, customer) {
+  if (!confirm(`確定要取消 ${customer} 的訂單嗎？`)) return;
+  callScript('updateOrder', {orderId, status:'已取消', note:'手動取消'}).then(() => {
+    showToast('🚫 訂單已取消');
+    loadOrders();
+  }).catch(() => showToast('❌ 操作失敗'));
+}
+
+function addProductRow() {
+  productRowCount++;
+  const div = document.createElement('div');
+  div.className = 'product-row';
+  div.style.cssText = 'margin-top:12px;padding-top:12px;border-top:1px solid var(--border)';
+  div.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-size:12px;color:var(--text-muted);font-weight:600">商品 ${productRowCount}</span>
+      <button onclick="this.closest('.product-row').remove()" style="font-size:12px;color:var(--red);background:none;border:none;cursor:pointer">✕ 移除</button>
+    </div>
+    <div class="form-group"><label class="form-label">商品名稱</label><input class="form-input product-name" placeholder="商品名稱"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">售價</label><input class="form-input product-price" type="number" placeholder="0"></div>
+      <div class="form-group"><label class="form-label">成本</label><input class="form-input product-cost" type="number" placeholder="0"></div>
+    </div>`;
+  document.getElementById('products-container').appendChild(div);
+}
+
+async function submitNewOrder() {
+  const customer = document.getElementById('new-customer').value.trim();
+  const payment = document.getElementById('new-payment').value;
+  const shipping = Number(document.getElementById('new-shipping').value) || 0;
+  const note = document.getElementById('new-note').value.trim();
+  if (!customer) { showToast('❌ 請輸入顧客名稱'); return; }
+  const nameInputs = document.querySelectorAll('.product-name');
+  const priceInputs = document.querySelectorAll('.product-price');
+  const costInputs = document.querySelectorAll('.product-cost');
+  let totalPrice = 0, totalCost = 0, products = [];
+  nameInputs.forEach((el, i) => {
+    const name = el.value.trim();
+    const price = Number(priceInputs[i]?.value) || 0;
+    const cost = Number(costInputs[i]?.value) || 0;
+    if (name) { products.push({name, price, cost}); totalPrice += price; totalCost += cost; }
+  });
+  if (products.length === 0) { showToast('❌ 請輸入至少一項商品'); return; }
+  try {
+    const result = await callScript('addOrder', {
+      customer, product: products.map(p => p.name).join('、'),
+      price: totalPrice, cost: totalCost, shipping, note,
+      paymentType: payment === '貨到付款' ? '貨到付款' : ''
+    });
+    if (result.error) { showToast('❌ 建立失敗'); return; }
+    if (payment === '已付款' && result.orderId) {
+      await callScript('updateOrder', {orderId: result.orderId, status:'已付款', note});
+    }
+    showToast('✅ 訂單 ' + result.orderId + ' 已建立！');
+    clearNewOrder();
+    switchPage('orders');
+  } catch(e) { showToast('❌ 建立失敗：' + e.message); }
+}
+
+function clearNewOrder() {
+  document.getElementById('new-customer').value = '';
+  document.getElementById('new-payment').value = '待付款';
+  document.getElementById('new-shipping').value = '0';
+  document.getElementById('new-note').value = '';
+  document.getElementById('products-container').innerHTML = `
+    <div class="product-row">
+      <div class="form-group"><label class="form-label">商品名稱</label><input class="form-input product-name" placeholder="商品名稱"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">售價</label><input class="form-input product-price" type="number" placeholder="0"></div>
+        <div class="form-group"><label class="form-label">成本</label><input class="form-input product-cost" type="number" placeholder="0"></div>
+      </div>
+    </div>`;
+  productRowCount = 1;
+}
+
+loadDashboard();
+</script>
+</body>
+</html>
