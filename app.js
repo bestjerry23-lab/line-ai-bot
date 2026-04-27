@@ -42,6 +42,33 @@ async function getProductList() {
   ).join('\n');
 }
 
+// 讓 orders.html 透過 Render 取得訂單資料
+app.use(require('express').json());
+
+app.post('/api/orders', async (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  try {
+    const response = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body),
+      redirect: 'follow',
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    res.json({ error: err.message });
+  }
+});
+
+app.options('/api/orders', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.sendStatus(200);
+});
 app.post('/webhook', line.middleware(lineConfig), async (req, res) => {
   const events = req.body.events;
   await Promise.all(events.map(handleEvent));
