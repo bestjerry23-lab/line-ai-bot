@@ -289,10 +289,11 @@ function statusBadge(status) {
 
 async function callScript(action, params = {}) {
   try {
+    const body = JSON.stringify({action,...params});
+    const url = APPS_SCRIPT_URL + '?callback=cb';
     const res = await fetch(APPS_SCRIPT_URL, {
       method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action,...params}),
+      body: body,
       redirect:'follow'
     });
     const text = await res.text();
