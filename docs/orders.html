@@ -338,6 +338,8 @@ async function loadDashboard() {
     document.getElementById('stat-paid').textContent = paid.length;
     document.getElementById('stat-unpaid').textContent = unpaid.length;
     document.getElementById('stat-revenue').textContent = 'NT$' + revenue.toLocaleString();
+    const totalSales = active.reduce((s,o) => s + Number(o.price||0), 0);
+document.getElementById('stat-total-sales').textContent = 'NT$' + totalSales.toLocaleString();
 
     const total = active.length || 1;
     setTimeout(() => {
