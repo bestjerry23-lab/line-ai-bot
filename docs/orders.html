@@ -161,6 +161,23 @@ tr:active td{background:var(--warm)}
 .toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--brown-dark);color:white;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:500;opacity:0;transition:all 0.3s;z-index:300;white-space:nowrap}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .badge-count{background:var(--red);color:white;font-size:10px;font-weight:700;padding:1px 5px;border-radius:10px;margin-left:4px}
+.waiting-card{background:var(--card);border-radius:14px;padding:14px;box-shadow:var(--shadow);border:1px solid var(--border);margin-bottom:10px;transition:border-color 0.2s}
+.waiting-card.selected{border-color:var(--brown);background:#FFFAF5}
+.waiting-top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.waiting-check{width:20px;height:20px;border-radius:6px;border:2px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s}
+.waiting-check.checked{background:var(--brown);border-color:var(--brown);color:white}
+.waiting-name{font-size:14px;font-weight:700;color:var(--brown-dark)}
+.waiting-payment{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px}
+.waiting-payment.paid{background:var(--green-bg);color:var(--green)}
+.waiting-payment.unpaid{background:var(--amber-bg);color:var(--amber)}
+.waiting-product{font-size:12px;color:var(--text-muted);margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.waiting-footer{display:flex;align-items:center;justify-content:space-between}
+.waiting-amount{font-size:16px;font-weight:700;color:var(--brown)}
+.waiting-date{font-size:11px;color:var(--text-muted)}
+.waiting-id{font-size:10px;color:var(--text-muted);font-weight:500}
+.select-all-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:8px 12px;background:white;border-radius:10px;border:1px solid var(--border)}
+.select-all-text{font-size:13px;color:var(--text-muted);font-weight:500}
+.selected-count{font-size:12px;color:var(--brown);font-weight:600;margin-left:auto}
 </style>
 </head>
 <body>
@@ -266,7 +283,17 @@ tr:active td{background:var(--warm)}
 <div class="bottom-nav">
   <button class="nav-item active" onclick="switchPage('dashboard')" id="nav-dashboard"><span class="nav-icon">📊</span><span class="nav-label">統計</span></button>
   <button class="nav-item" onclick="switchPage('orders')" id="nav-orders"><span class="nav-icon">📋</span><span class="nav-label">訂單</span></button>
+  <button class="nav-item" onclick="switchPage('waiting')" id="nav-waiting"><span class="nav-icon">📝</span><span class="nav-label">待訂</span></button>
   <button class="nav-item" onclick="switchPage('new')" id="nav-new"><span class="nav-icon">➕</span><span class="nav-label">新增</span></button>
+</div>
+
+<!-- 待訂清單 -->
+<div id="page-waiting" class="page content">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <div style="font-size:15px;font-weight:700;color:var(--brown-dark)">待訂清單</div>
+    <button id="batch-convert-btn" onclick="batchConvert()" style="display:none;padding:8px 14px;border-radius:10px;background:var(--brown);color:white;border:none;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">✓ 批次轉訂單</button>
+  </div>
+  <div id="waiting-list"><div class="loading">載入中...</div></div>
 </div>
 
 <!-- 訂單詳細 Modal -->
@@ -394,6 +421,7 @@ function switchPage(page) {
   document.getElementById('nav-' + page).classList.add('active');
   if (page === 'dashboard') loadDashboard();
   if (page === 'orders') loadOrders();
+  if (page === 'waiting') loadWaiting();
 }
 
 function showToast(msg) {
@@ -730,6 +758,108 @@ function clearNewOrder() {
       </div>
     </div>`;
   productRowCount = 1;
+}
+
+// ===== 待訂清單 =====
+let waitingList = [];
+let selectedWaiting = new Set();
+
+async function loadWaiting() {
+  document.getElementById('waiting-list').innerHTML = '<div class="loading">載入中...</div>';
+  try {
+    const result = await callScript('getWaiting', {});
+    if (!result || result.error || !result.list) {
+      document.getElementById('waiting-list').innerHTML = '<div class="empty"><div class="empty-icon">❌</div><div class="empty-text">載入失敗</div></div>';
+      return;
+    }
+    waitingList = result.list;
+    selectedWaiting.clear();
+    renderWaiting();
+  } catch(e) {
+    document.getElementById('waiting-list').innerHTML = '<div class="empty"><div class="empty-icon">❌</div><div class="empty-text">載入失敗</div></div>';
+  }
+}
+
+function renderWaiting() {
+  if (!waitingList.length) {
+    document.getElementById('waiting-list').innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">目前沒有待訂記錄</div></div>';
+    document.getElementById('batch-convert-btn').style.display = 'none';
+    return;
+  }
+
+  const allChecked = waitingList.length > 0 && waitingList.every(w => selectedWaiting.has(w.id));
+
+  let html = `<div class="select-all-row">
+    <div class="waiting-check ${allChecked ? 'checked' : ''}" onclick="toggleSelectAll()">${allChecked ? '✓' : ''}</div>
+    <span class="select-all-text">全選</span>
+    <span class="selected-count">${selectedWaiting.size > 0 ? `已選 ${selectedWaiting.size} 筆` : ''}</span>
+  </div>`;
+
+  html += waitingList.map(w => {
+    const isSelected = selectedWaiting.has(w.id);
+    return `<div class="waiting-card ${isSelected ? 'selected' : ''}" onclick="toggleWaiting('${w.id}')">
+      <div class="waiting-top">
+        <div class="waiting-check ${isSelected ? 'checked' : ''}">${isSelected ? '✓' : ''}</div>
+        <div class="waiting-name">${w.customer||'未知'}</div>
+        <span class="waiting-payment ${w.paymentStatus === '已付款' ? 'paid' : 'unpaid'}">${w.paymentStatus === '已付款' ? '💳 已付款' : '⏳ 未付款'}</span>
+      </div>
+      <div class="waiting-product">${w.product||''}</div>
+      <div class="waiting-footer">
+        <div>
+          <div class="waiting-amount">NT$${Number(w.price||0).toLocaleString()}</div>
+          <div class="waiting-id">${w.id} ｜ ${w.date||''}</div>
+        </div>
+        <div style="text-align:right">
+          ${w.cost ? `<div style="font-size:11px;color:var(--text-muted)">成本 NT$${Number(w.cost).toLocaleString()}</div>` : ''}
+          ${w.note ? `<div style="font-size:11px;color:var(--text-muted)">${w.note}</div>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('waiting-list').innerHTML = html;
+  document.getElementById('batch-convert-btn').style.display = selectedWaiting.size > 0 ? 'block' : 'none';
+}
+
+function toggleWaiting(id) {
+  if (selectedWaiting.has(id)) selectedWaiting.delete(id);
+  else selectedWaiting.add(id);
+  renderWaiting();
+}
+
+function toggleSelectAll() {
+  if (waitingList.every(w => selectedWaiting.has(w.id))) {
+    selectedWaiting.clear();
+  } else {
+    waitingList.forEach(w => selectedWaiting.add(w.id));
+  }
+  renderWaiting();
+}
+
+async function batchConvert() {
+  if (selectedWaiting.size === 0) { showToast('請先選擇待訂'); return; }
+  if (!confirm(`確定要將 ${selectedWaiting.size} 筆待訂轉為正式訂單嗎？`)) return;
+
+  const btn = document.getElementById('batch-convert-btn');
+  btn.textContent = '⏳ 轉換中...';
+  btn.disabled = true;
+
+  try {
+    const result = await callScript('batchConvertWaiting', { waitIds: [...selectedWaiting] });
+    if (result.error) { showToast('❌ 轉換失敗'); return; }
+
+    let msg = `✅ 成功轉換 ${result.results.length} 筆！`;
+    if (result.errors && result.errors.length > 0) msg += `
+❌ 失敗 ${result.errors.length} 筆`;
+    showSuccessToast(msg);
+    selectedWaiting.clear();
+    await loadWaiting();
+  } catch(e) {
+    showToast('❌ 轉換失敗');
+  } finally {
+    btn.textContent = '✓ 批次轉訂單';
+    btn.disabled = false;
+  }
 }
 
 loadDashboard();
