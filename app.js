@@ -340,6 +340,41 @@ async function handleEvent(event) {
       await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text }] });
       return;
     }
+    // 批次轉訂單
+// 格式：批次轉訂單：W001,W002,W003
+const batchConvertMatch = userMessage.match(/^批次轉訂單\s*[：:]\s*(.+)/);
+if (batchConvertMatch) {
+  const waitIds = batchConvertMatch[1].split(',').map(s => s.trim()).filter(s => s);
+  if (waitIds.length === 0) {
+    await client.replyMessage({
+      replyToken: event.replyToken,
+      messages: [{ type: 'text', text: '❌ 格式錯誤！\n正確格式：批次轉訂單：W001,W002,W003' }],
+    });
+    return;
+  }
+  const result = await callScript('batchConvertWaiting', { waitIds });
+  if (result.error) {
+    await client.replyMessage({
+      replyToken: event.replyToken,
+      messages: [{ type: 'text', text: `❌ ${result.error}` }],
+    });
+    return;
+  }
+  let text = `✅ 批次轉訂單完成！\n━━━━━━━━━━━━━━\n`;
+  text += `📋 成功 ${result.results.length} 筆\n`;
+  text += result.results.map(r =>
+    `${r.waitId} → ${r.orderId}\n👤 ${r.customer} | ${r.paymentStatus === '已付款' ? '💳 已付款' : '⏳ 待付款'}`
+  ).join('\n━━━━━━━━━━━━━━\n');
+  if (result.errors && result.errors.length > 0) {
+    text += `\n━━━━━━━━━━━━━━\n❌ 失敗 ${result.errors.length} 筆\n`;
+    text += result.errors.join('\n');
+  }
+  await client.replyMessage({
+    replyToken: event.replyToken,
+    messages: [{ type: 'text', text }],
+  });
+  return;
+}
 
     const convertMatch = userMessage.match(/^待訂轉訂單\s*[：:]\s*(\S+)/);
     if (convertMatch) {
