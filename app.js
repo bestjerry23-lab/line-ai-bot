@@ -300,19 +300,46 @@ async function handleEvent(event) {
     }
 
     const addWaitMatch = userMessage.match(/^新增待訂\s*[：:]\s*(.+)/);
-    if (addWaitMatch) {
-      const parts = addWaitMatch[1].split('/').map(s => s.trim());
-      if (parts.length < 3) {
-        await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '❌ 格式錯誤！\n正確格式：新增待訂：顧客/商品/$金額/$成本/備註/付款狀態\n\n付款狀態可填：已付款 或 未付款' }] });
-        return;
-      }
-      const paymentStatus = parts[5] === '已付款' ? '已付款' : '未付款';
-      const link = parts[6] && parts[6].startsWith('http') ? parts[6] : '';
-      const result = await callScript('addWaiting', { customer: parts[0], product: parts[1], price: parsePrice(parts[2]), cost: parsePrice(parts[3] || '0'), note: parts[4] || '', link, imageUrl: '', paymentStatus });
-      await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `📝 待訂已記錄！\n━━━━━━━━━━━━━━\n🆔 待訂編號：${result.waitId}\n👤 顧客：${parts[0]}\n📦 商品：${parts[1]}\n💰 金額：${parsePrice(parts[2])} 元\n💵 成本：${parsePrice(parts[3] || '0')} 元\n📋 備註：${parts[4] || '無'}\n💳 付款：${paymentStatus}\n━━━━━━━━━━━━━━\n可下單後傳「待訂轉訂單：${result.waitId}」` }] });
-      return;
-    }
+if (addWaitMatch) {
+  const parts = addWaitMatch[1].split('/').map(s => s.trim());
+  if (parts.length < 3) {
+    await client.replyMessage({
+      replyToken: event.replyToken,
+      messages: [{ type: 'text', text: '❌ 格式錯誤！\n最少需要：新增待訂：顧客/商品/$金額\n\n完整格式：新增待訂：顧客/商品/$金額/$成本/備註/付款狀態' }],
+    });
+    return;
+  }
 
+  const customer = parts[0];
+  const product = parts[1];
+  const price = parsePrice(parts[2]);
+
+  // 彈性解析剩餘欄位
+  let cost = 0, note = '', link = '', paymentStatus = '未付款';
+
+  // 從第4個欄位開始，自動判斷每個欄位是什麼
+  for (let i = 3; i < parts.length; i++) {
+    const p = parts[i];
+    if (p === '已付款' || p === '未付款') {
+      paymentStatus = p;
+    } else if (p.startsWith('http')) {
+      link = p;
+    } else if (p.startsWith('$') || /^\d+$/.test(p)) {
+      cost = parsePrice(p);
+    } else if (p) {
+      note = p;
+    }
+  }
+
+  const result = await callScript('addWaiting', {
+    customer, product, price, cost, note, link, imageUrl: '', paymentStatus,
+  });
+  await client.replyMessage({
+    replyToken: event.replyToken,
+    messages: [{ type: 'text', text: `📝 待訂已記錄！\n━━━━━━━━━━━━━━\n🆔 待訂編號：${result.waitId}\n👤 顧客：${customer}\n📦 商品：${product}\n💰 金額：${price} 元\n💵 成本：${cost || '未填'} 元\n📋 備註：${note || '無'}\n💳 付款：${paymentStatus}\n━━━━━━━━━━━━━━\n可下單後傳「待訂轉訂單：${result.waitId}」` }],
+  });
+  return;
+}
     const editWaitMatch = userMessage.match(/^修改待訂\s*[：:]\s*(.+)/);
     if (editWaitMatch) {
       const parts = editWaitMatch[1].split('/').map(s => s.trim());
