@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>貝拉現場採購</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --cream:#FDF8F3;--warm:#F5EDE0;--brown:#8B6343;--brown-light:#C9956A;
+  --brown-dark:#5C3D1E;--green:#4CAF7D;--green-bg:#E8F5EE;
+  --red:#E05C5C;--red-bg:#FDE8E8;--amber:#E8A030;--amber-bg:#FDF0DC;
+  --blue:#5B8DEF;--blue-bg:#EBF1FF;--purple:#7C3AED;--purple-bg:#F0E8FF;
+  --text:#2C1810;--text-muted:#8B7355;--border:#E8D9C8;
+  --card:#FFFFFF;--shadow:0 2px 12px rgba(139,99,67,0.08);
+}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--cream);color:var(--text);min-height:100vh;padding-bottom:40px}
+
+/* Header */
+.header{background:var(--brown-dark);padding:16px 20px;position:sticky;top:0;z-index:100}
+.header-title{font-size:18px;font-weight:700;color:white}
+.header-sub{font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px}
+
+.content{padding:16px}
+
+/* 步驟指示 */
+.steps{display:flex;gap:0;margin-bottom:20px;background:white;border-radius:12px;border:1px solid var(--border);overflow:hidden}
+.step{flex:1;padding:10px 6px;text-align:center;font-size:11px;font-weight:500;color:var(--text-muted);cursor:pointer;transition:all 0.2s;border-right:1px solid var(--border)}
+.step:last-child{border-right:none}
+.step.active{background:var(--brown-dark);color:white}
+.step.done{background:var(--green-bg);color:var(--green)}
+.step-num{font-size:16px;display:block;margin-bottom:2px}
+
+/* 區塊卡片 */
+.section-card{background:var(--card);border-radius:16px;padding:16px;box-shadow:var(--shadow);border:1px solid var(--border);margin-bottom:14px}
+.section-title{font-size:13px;font-weight:700;color:var(--brown-dark);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+
+/* 表單元件 */
+.form-group{margin-bottom:12px}
+.form-label{font-size:11px;color:var(--text-muted);font-weight:500;margin-bottom:5px;display:block}
+.form-input{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;color:var(--text);background:white;outline:none;transition:border-color 0.2s}
+.form-input:focus{border-color:var(--brown)}
+.form-select{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;color:var(--text);background:white;outline:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238B7355' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+.form-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+/* 商品列 */
+.product-item{background:var(--warm);border-radius:12px;padding:12px;margin-bottom:10px;position:relative}
+.product-item-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.product-num{font-size:12px;font-weight:700;color:var(--brown-dark)}
+.remove-btn{background:var(--red-bg);border:none;color:var(--red);font-size:12px;padding:3px 10px;border-radius:8px;cursor:pointer;font-family:inherit}
+
+/* 照片上傳 */
+.photo-area{border:2px dashed var(--border);border-radius:12px;padding:20px;text-align:center;cursor:pointer;transition:all 0.2s;background:white}
+.photo-area:hover{border-color:var(--brown);background:var(--warm)}
+.photo-area.has-photos{border-style:solid;border-color:var(--green);background:var(--green-bg)}
+.photo-icon{font-size:32px;margin-bottom:8px}
+.photo-text{font-size:13px;color:var(--text-muted)}
+.photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.photo-thumb{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--warm)}
+.photo-thumb img{width:100%;height:100%;object-fit:cover}
+.photo-delete{position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.6);border:none;color:white;width:20px;height:20px;border-radius:50%;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+/* 待訂選擇 */
+.waiting-item{display:flex;align-items:center;gap:10px;padding:10px;background:white;border-radius:10px;border:1.5px solid var(--border);margin-bottom:8px;cursor:pointer;transition:all 0.15s}
+.waiting-item.selected{border-color:var(--brown);background:#FFFAF5}
+.waiting-check{width:20px;height:20px;border-radius:6px;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.waiting-item.selected .waiting-check{background:var(--brown);border-color:var(--brown);color:white}
+.waiting-info{flex:1;min-width:0}
+.waiting-name{font-size:13px;font-weight:600;color:var(--brown-dark)}
+.waiting-product{font-size:11px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.waiting-price{font-size:13px;font-weight:700;color:var(--brown);flex-shrink:0}
+
+/* 按鈕 */
+.btn-primary{width:100%;padding:14px;border-radius:12px;background:var(--brown-dark);border:none;color:white;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:8px;transition:opacity 0.2s}
+.btn-primary:disabled{opacity:0.6}
+.btn-secondary{width:100%;padding:12px;border-radius:12px;background:var(--warm);border:1px solid var(--border);color:var(--text-muted);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;margin-top:6px}
+.btn-add{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:10px;border-radius:10px;background:white;border:1.5px dashed var(--border);color:var(--brown);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;margin-top:4px}
+
+/* Toast */
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--brown-dark);color:white;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:500;opacity:0;transition:all 0.3s;z-index:300;white-space:nowrap;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* 成功畫面 */
+.success-screen{text-align:center;padding:40px 20px;display:none}
+.success-icon{font-size:64px;margin-bottom:16px}
+.success-title{font-size:20px;font-weight:700;color:var(--brown-dark);margin-bottom:8px}
+.success-sub{font-size:13px;color:var(--text-muted);margin-bottom:24px}
+.result-list{background:white;border-radius:14px;padding:14px;border:1px solid var(--border);text-align:left;margin-bottom:16px}
+.result-item{font-size:12px;color:var(--text-muted);padding:4px 0;border-bottom:1px solid var(--border)}
+.result-item:last-child{border-bottom:none}
+.result-item strong{color:var(--brown-dark)}
+
+/* 載入 */
+.loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,0.9);display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;z-index:400}
+.loading-overlay.show{display:flex}
+.loading-spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--brown);border-radius:50%;animation:spin 0.8s linear infinite}
+.loading-text{font-size:14px;color:var(--brown-dark);font-weight:500}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">📦 貝拉現場採購</div>
+  <div class="header-sub">韓國現場採購記錄系統</div>
+</div>
+
+<div class="content">
+  <!-- 步驟 -->
+  <div class="steps">
+    <div class="step active" id="step1"><span class="step-num">1</span>採購資訊</div>
+    <div class="step" id="step2"><span class="step-num">2</span>待訂配對</div>
+    <div class="step" id="step3"><span class="step-num">3</span>上傳照片</div>
+    <div class="step" id="step4"><span class="step-num">4</span>送出確認</div>
+  </div>
+
+  <!-- 步驟一：採購資訊 -->
+  <div id="view-step1">
+    <div class="section-card">
+      <div class="section-title">🏭 廠商資訊</div>
+      <div class="form-group">
+        <label class="form-label">廠商名稱</label>
+        <select class="form-select" id="vendor-select">
+          <option value="">載入中...</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">採購日期</label>
+        <input class="form-input" type="date" id="purchase-date">
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-title">🛍️ 採購商品明細</div>
+      <div id="products-list"></div>
+      <button class="btn-add" onclick="addProductRow()">+ 新增商品</button>
+    </div>
+
+    <button class="btn-primary" onclick="goStep(2)">下一步：配對待訂 →</button>
+  </div>
+
+  <!-- 步驟二：待訂配對 -->
+  <div id="view-step2" style="display:none">
+    <div class="section-card">
+      <div class="section-title">📝 選擇要轉為訂單的待訂</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">勾選這次採購到的商品對應的待訂，系統會自動轉成正式訂單</div>
+      <div id="waiting-list"><div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px">載入待訂中...</div></div>
+    </div>
+    <div id="selected-count-info" style="font-size:13px;color:var(--brown);font-weight:600;margin-bottom:8px;text-align:center"></div>
+    <button class="btn-primary" onclick="goStep(3)">下一步：上傳照片 →</button>
+    <button class="btn-secondary" onclick="goStep(1)">← 返回</button>
+  </div>
+
+  <!-- 步驟三：上傳照片 -->
+  <div id="view-step3" style="display:none">
+    <div class="section-card">
+      <div class="section-title">📸 上傳採購照片</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">可上傳收據、商品照片等（選填）</div>
+
+      <div class="photo-area" id="photo-area" onclick="document.getElementById('photo-input').click()">
+        <div class="photo-icon">📷</div>
+        <div class="photo-text">點擊上傳照片<br><span style="font-size:11px">支援多張，收據/商品照片</span></div>
+      </div>
+      <input type="file" id="photo-input" accept="image/*" multiple style="display:none" onchange="handlePhotos(this)">
+      <div class="photo-grid" id="photo-grid"></div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-title">📋 採購備註</div>
+      <textarea class="form-input" id="purchase-note" rows="3" placeholder="備註（匯率、特殊說明等）" style="resize:none"></textarea>
+    </div>
+
+    <button class="btn-primary" onclick="goStep(4)">下一步：確認送出 →</button>
+    <button class="btn-secondary" onclick="goStep(2)">← 返回</button>
+  </div>
+
+  <!-- 步驟四：確認送出 -->
+  <div id="view-step4" style="display:none">
+    <div class="section-card">
+      <div class="section-title">✅ 採購確認</div>
+      <div id="confirm-content"></div>
+    </div>
+    <button class="btn-primary" id="submit-btn" onclick="submitPurchase()">🚀 確認送出採購記錄</button>
+    <button class="btn-secondary" onclick="goStep(3)">← 返回修改</button>
+  </div>
+
+  <!-- 成功畫面 -->
+  <div class="success-screen" id="success-screen">
+    <div class="success-icon">🎉</div>
+    <div class="success-title">採購記錄完成！</div>
+    <div class="success-sub">所有資料已成功寫入系統</div>
+    <div class="result-list" id="result-list"></div>
+    <button class="btn-primary" onclick="resetForm()">📦 繼續新增採購</button>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loading">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loading-text">處理中...</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw1thsiQXBS2oSIoJGsqfP9O5UGkIZ4q6hJSL2D_PHArxnAAJeABZOz_yOM_OF6dORp/exec';
+const DRIVE_FOLDER_ID = '1OrvP1fDzGZTbNcuyP0GHvXzW3CfXGPiI';
+
+let cbCount = 0;
+let vendorList = [];
+let waitingList = [];
+let selectedWaiting = new Set();
+let photos = [];
+let productCount = 1;
+let currentStep = 1;
+
+// 初始化
+window.onload = async () => {
+  // 設定今天日期
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('purchase-date').value = today;
+
+  // 新增第一個商品列
+  addProductRow();
+
+  // 載入廠商清單
+  await loadVendors();
+};
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function showLoading(text = '處理中...') {
+  document.getElementById('loading-text').textContent = text;
+  document.getElementById('loading').classList.add('show');
+}
+
+function hideLoading() {
+  document.getElementById('loading').classList.remove('show');
+}
+
+function callScript(action, params = {}) {
+  return new Promise((resolve, reject) => {
+    const cbName = '__cb' + (++cbCount);
+    const timeout = setTimeout(() => {
+      delete window[cbName];
+      reject(new Error('timeout'));
+    }, 20000);
+    window[cbName] = function(data) {
+      clearTimeout(timeout);
+      delete window[cbName];
+      const s = document.getElementById(cbName);
+      if (s) s.remove();
+      resolve(data);
+    };
+    const body = encodeURIComponent(JSON.stringify({action, ...params}));
+    const script = document.createElement('script');
+    script.id = cbName;
+    script.src = SCRIPT_URL + '?callback=' + cbName + '&body=' + body;
+    script.onerror = () => { clearTimeout(timeout); delete window[cbName]; script.remove(); reject(new Error('error')); };
+    document.head.appendChild(script);
+  });
+}
+
+async function loadVendors() {
+  try {
+    const result = await callScript('getVendors', {});
+    vendorList = result.vendors || [];
+    const select = document.getElementById('vendor-select');
+    select.innerHTML = '<option value="">請選擇廠商</option>' +
+      vendorList.map(v => `<option value="${v.name}">${v.name}</option>`).join('');
+  } catch(e) {
+    document.getElementById('vendor-select').innerHTML = '<option value="">載入失敗，請重試</option>';
+  }
+}
+
+async function loadWaiting() {
+  try {
+    const result = await callScript('getWaiting', {});
+    waitingList = result.list || [];
+    renderWaitingList();
+  } catch(e) {
+    document.getElementById('waiting-list').innerHTML = '<div style="text-align:center;padding:20px;color:var(--red)">載入失敗</div>';
+  }
+}
+
+function renderWaitingList() {
+  if (!waitingList.length) {
+    document.getElementById('waiting-list').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px">📭 目前沒有待訂記錄</div>';
+    return;
+  }
+  document.getElementById('waiting-list').innerHTML = waitingList.map(w => {
+    const isSelected = selectedWaiting.has(w.id);
+    return `<div class="waiting-item ${isSelected ? 'selected' : ''}" onclick="toggleWaiting('${w.id}')">
+      <div class="waiting-check">${isSelected ? '✓' : ''}</div>
+      <div class="waiting-info">
+        <div class="waiting-name">${w.customer}</div>
+        <div class="waiting-product">${w.product}</div>
+      </div>
+      <div class="waiting-price">NT$${Number(w.price||0).toLocaleString()}</div>
+    </div>`;
+  }).join('');
+  updateSelectedCount();
+}
+
+function toggleWaiting(id) {
+  if (selectedWaiting.has(id)) selectedWaiting.delete(id);
+  else selectedWaiting.add(id);
+  renderWaitingList();
+}
+
+function updateSelectedCount() {
+  const el = document.getElementById('selected-count-info');
+  el.textContent = selectedWaiting.size > 0 ? `已選擇 ${selectedWaiting.size} 筆待訂，將自動轉為正式訂單` : '可跳過此步驟';
+}
+
+function addProductRow() {
+  const div = document.createElement('div');
+  div.className = 'product-item';
+  div.id = 'product-' + productCount;
+  const num = productCount;
+  div.innerHTML = `
+    <div class="product-item-header">
+      <span class="product-num">商品 ${num}</span>
+      ${num > 1 ? `<button class="remove-btn" onclick="document.getElementById('product-${num}').remove()">✕ 移除</button>` : ''}
+    </div>
+    <div class="form-group"><label class="form-label">商品名稱</label><input class="form-input product-name" placeholder="例：Dior唇膏344粉色蝴蝶結"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">售價(NT$)</label><input class="form-input product-price" type="number" placeholder="0"></div>
+      <div class="form-group"><label class="form-label">成本(NT$)</label><input class="form-input product-cost" type="number" placeholder="0"></div>
+      <div class="form-group"><label class="form-label">數量</label><input class="form-input product-qty" type="number" placeholder="1" value="1"></div>
+    </div>`;
+  document.getElementById('products-list').appendChild(div);
+  productCount++;
+}
+
+function handlePhotos(input) {
+  const files = Array.from(input.files);
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      photos.push({ file, base64: e.target.result, name: file.name });
+      renderPhotoGrid();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderPhotoGrid() {
+  const area = document.getElementById('photo-area');
+  const grid = document.getElementById('photo-grid');
+  if (photos.length > 0) {
+    area.classList.add('has-photos');
+    area.querySelector('.photo-text').textContent = `已選擇 ${photos.length} 張照片`;
+  }
+  grid.innerHTML = photos.map((p, i) => `
+    <div class="photo-thumb">
+      <img src="${p.base64}" alt="${p.name}">
+      <button class="photo-delete" onclick="removePhoto(${i})">✕</button>
+    </div>`).join('');
+}
+
+function removePhoto(index) {
+  photos.splice(index, 1);
+  renderPhotoGrid();
+  if (photos.length === 0) {
+    document.getElementById('photo-area').classList.remove('has-photos');
+    document.getElementById('photo-area').querySelector('.photo-text').innerHTML = '點擊上傳照片<br><span style="font-size:11px">支援多張，收據/商品照片</span>';
+  }
+}
+
+async function goStep(step) {
+  // 驗證步驟一
+  if (step > 1) {
+    const vendor = document.getElementById('vendor-select').value;
+    if (!vendor) { showToast('❌ 請選擇廠商'); return; }
+    const names = document.querySelectorAll('.product-name');
+    const hasProduct = Array.from(names).some(n => n.value.trim());
+    if (!hasProduct) { showToast('❌ 請至少填入一項商品'); return; }
+  }
+
+  // 進入步驟二時載入待訂
+  if (step === 2 && waitingList.length === 0) {
+    showLoading('載入待訂清單...');
+    await loadWaiting();
+    hideLoading();
+  }
+
+  // 進入步驟四時顯示確認
+  if (step === 4) renderConfirm();
+
+  currentStep = step;
+  [1,2,3,4].forEach(s => {
+    document.getElementById('view-step' + s).style.display = s === step ? 'block' : 'none';
+    const stepEl = document.getElementById('step' + s);
+    stepEl.classList.remove('active','done');
+    if (s === step) stepEl.classList.add('active');
+    else if (s < step) stepEl.classList.add('done');
+  });
+  window.scrollTo(0,0);
+}
+
+function renderConfirm() {
+  const vendor = document.getElementById('vendor-select').value;
+  const date = document.getElementById('purchase-date').value;
+  const note = document.getElementById('purchase-note').value;
+
+  const products = getProducts();
+  const totalCost = products.reduce((s,p) => s + p.cost * p.qty, 0);
+  const selectedWaitingList = waitingList.filter(w => selectedWaiting.has(w.id));
+
+  document.getElementById('confirm-content').innerHTML = `
+    <div style="margin-bottom:12px">
+      <div style="font-size:12px;color:var(--text-muted)">廠商</div>
+      <div style="font-size:15px;font-weight:700;color:var(--brown-dark)">${vendor}</div>
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:12px;color:var(--text-muted)">採購日期</div>
+      <div style="font-size:14px;font-weight:600;color:var(--text)">${date}</div>
+    </div>
+    <div style="background:var(--warm);border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;color:var(--brown-dark);margin-bottom:8px">採購商品（${products.length} 項）</div>
+      ${products.map(p => `<div style="font-size:12px;color:var(--text);padding:4px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between">
+        <span>${p.name} × ${p.qty}</span>
+        <span style="color:var(--brown);font-weight:600">成本 NT$${(p.cost*p.qty).toLocaleString()}</span>
+      </div>`).join('')}
+      <div style="font-size:13px;font-weight:700;color:var(--brown-dark);margin-top:8px;text-align:right">總成本 NT$${totalCost.toLocaleString()}</div>
+    </div>
+    ${selectedWaitingList.length > 0 ? `
+    <div style="background:var(--green-bg);border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:8px">✅ 轉為訂單（${selectedWaitingList.length} 筆待訂）</div>
+      ${selectedWaitingList.map(w => `<div style="font-size:12px;color:var(--text);padding:3px 0">${w.customer} — ${w.product.substring(0,20)}...</div>`).join('')}
+    </div>` : ''}
+    ${photos.length > 0 ? `<div style="font-size:12px;color:var(--text-muted)">📸 ${photos.length} 張照片將一併上傳</div>` : ''}
+    ${note ? `<div style="font-size:12px;color:var(--text-muted);margin-top:6px">📋 備註：${note}</div>` : ''}`;
+}
+
+function getProducts() {
+  const items = document.querySelectorAll('.product-item');
+  const products = [];
+  items.forEach(item => {
+    const name = item.querySelector('.product-name')?.value.trim();
+    if (!name) return;
+    const price = Number(item.querySelector('.product-price')?.value) || 0;
+    const cost = Number(item.querySelector('.product-cost')?.value) || 0;
+    const qty = Number(item.querySelector('.product-qty')?.value) || 1;
+    products.push({name, price, cost, qty});
+  });
+  return products;
+}
+
+async function submitPurchase() {
+  const btn = document.getElementById('submit-btn');
+  btn.textContent = '⏳ 送出中...';
+  btn.disabled = true;
+
+  const vendor = document.getElementById('vendor-select').value;
+  const date = document.getElementById('purchase-date').value;
+  const note = document.getElementById('purchase-note').value;
+  const products = getProducts();
+  const selectedIds = [...selectedWaiting];
+
+  const results = [];
+  const errors = [];
+
+  showLoading('寫入採購記錄...');
+
+  try {
+    // 1. 寫入廠商工作表
+    for (const p of products) {
+      try {
+        await callScript('vendorOrder', {
+          vendorName: vendor,
+          product: p.name,
+          cost: p.cost,
+          qty: p.qty,
+          type: '補庫存',
+          note: note || ''
+        });
+        results.push(`✅ ${p.name} × ${p.qty} 已寫入廠商工作表`);
+      } catch(e) {
+        errors.push(`❌ ${p.name} 寫入失敗`);
+      }
+    }
+
+    // 2. 批次轉待訂為訂單
+    if (selectedIds.length > 0) {
+      showLoading('轉換待訂為訂單...');
+      try {
+        const result = await callScript('batchConvertWaiting', { waitIds: selectedIds });
+        if (result.results) {
+          result.results.forEach(r => results.push(`✅ ${r.customer} → ${r.orderId} 已轉為訂單`));
+        }
+        if (result.errors) {
+          result.errors.forEach(e => errors.push(`❌ ${e}`));
+        }
+      } catch(e) {
+        errors.push('❌ 待訂轉換失敗');
+      }
+    }
+
+    // 3. 上傳照片（用 Apps Script Web App）
+    if (photos.length > 0) {
+      showLoading(`上傳照片 (0/${photos.length})...`);
+      for (let i = 0; i < photos.length; i++) {
+        showLoading(`上傳照片 (${i+1}/${photos.length})...`);
+        try {
+          await uploadPhoto(photos[i], vendor, date);
+          results.push(`📸 ${photos[i].name} 已上傳`);
+        } catch(e) {
+          errors.push(`❌ 照片 ${photos[i].name} 上傳失敗`);
+        }
+      }
+    }
+
+    // 顯示成功畫面
+    hideLoading();
+    document.getElementById('view-step4').style.display = 'none';
+    document.getElementById('success-screen').style.display = 'block';
+    document.getElementById('result-list').innerHTML = [
+      ...results.map(r => `<div class="result-item">${r}</div>`),
+      ...errors.map(e => `<div class="result-item" style="color:var(--red)">${e}</div>`)
+    ].join('');
+
+  } catch(e) {
+    hideLoading();
+    showToast('❌ 送出失敗，請重試');
+    btn.textContent = '🚀 確認送出採購記錄';
+    btn.disabled = false;
+  }
+}
+
+async function uploadPhoto(photo, vendor, date) {
+  // 用 fetch POST 直接上傳到 Apps Script
+  const base64Data = photo.base64.split(',')[1];
+  const response = await fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'uploadPhoto',
+      fileName: `${date}_${vendor}_${photo.name}`,
+      base64: base64Data,
+      mimeType: photo.file.type,
+      folderId: DRIVE_FOLDER_ID
+    })
+  });
+  const result = await response.json();
+  if (result.error) throw new Error(result.error);
+  return result;
+}
+
+function resetForm() {
+  // 重置所有表單
+  document.getElementById('vendor-select').value = '';
+  document.getElementById('products-list').innerHTML = '';
+  document.getElementById('photo-grid').innerHTML = '';
+  document.getElementById('purchase-note').value = '';
+  document.getElementById('photo-area').classList.remove('has-photos');
+  document.getElementById('photo-area').querySelector('.photo-text').innerHTML = '點擊上傳照片<br><span style="font-size:11px">支援多張，收據/商品照片</span>';
+  photos = [];
+  selectedWaiting.clear();
+  waitingList = [];
+  productCount = 1;
+  currentStep = 1;
+
+  document.getElementById('success-screen').style.display = 'none';
+  document.getElementById('view-step1').style.display = 'block';
+  [1,2,3,4].forEach(s => {
+    const stepEl = document.getElementById('step' + s);
+    stepEl.classList.remove('active','done');
+    if (s === 1) stepEl.classList.add('active');
+  });
+
+  addProductRow();
+
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('purchase-date').value = today;
+  window.scrollTo(0,0);
+}
+</script>
+</body>
+</html>
